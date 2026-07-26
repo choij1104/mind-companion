@@ -23,6 +23,18 @@ The following are saved in the browser's local storage on the device, and nowher
 - No transmission of any entered information to any server
 - No sharing with third parties
 
+## Conversation (optional, off by default)
+
+The app ships with conversation turned off and works entirely on the device.
+
+If a connection address is entered in Settings, each question is sent to a relay controlled by
+whoever set the app up, and from there to Anthropic's API to produce a reply. To make replies
+accurate, the message is accompanied by what is saved in the app: medicine, contacts, memory
+notes, and the personal details on the Help screen. This is transmitted only at the moment a
+question is asked, and only while a connection address is set.
+
+Clearing the connection address in Settings stops all of this immediately.
+
 ## Voice input
 
 Voice input uses the browser's built-in Web Speech API. On some browsers — notably Chrome —

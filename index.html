@@ -155,6 +155,8 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top
       <div class="transcript answer" id="reply"><b id="replyLbl">Answer</b><span id="replyTxt">—</span></div>
       <div id="sttWarn"></div>
       <button class="btn ghost small" onclick="askByTyping()"><span class="ic">⌨️</span><span id="typeAskLbl">Type a question instead</span></button>
+      <p class="tiny" id="exLbl" style="margin:16px 0 8px">You can ask me things like:</p>
+      <div id="examples"></div>
     </div>
 
     <div class="card">
@@ -295,6 +297,19 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top
     </div>
 
     <div class="card">
+      <h3 id="setAiTitle">Conversation</h3>
+      <p class="muted" id="setAiHint"></p>
+      <label id="lbRelay">Connection address</label>
+      <input id="relayUrl" type="url" inputmode="url" placeholder="https://....workers.dev">
+      <div class="row2" style="margin-top:12px">
+        <button class="btn green small" onclick="saveRelay()"><span class="ic">✔</span><span class="sv">Save</span></button>
+        <button class="btn ghost small" onclick="testRelay()"><span class="ic">🔌</span><span id="setTest">Test</span></button>
+      </div>
+      <div id="relayStatus" style="margin-top:12px"></div>
+      <p class="tiny" id="setAiNote" style="margin-top:10px"></p>
+    </div>
+
+    <div class="card">
       <h3 id="setBackupTitle">Backup and restore</h3>
       <p class="muted" id="setBackupHint"></p>
       <button class="btn green small" onclick="exportData()"><span class="ic">💾</span><span id="setExport">Save a backup file</span></button>
@@ -315,7 +330,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top
   </section>
 
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.2
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.3
   </div>
 </div>
 
@@ -342,13 +357,13 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:#fff;border-top
 
 <script>
 /* =====================================================================
-   Mind Companion v1.2
+   Mind Companion v1.3
    A private, offline-first memory aid for older adults.
    Default language: English. Korean available in Settings.
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -376,7 +391,10 @@ const store = {
 };
 
 /* ---------------- state ---------------- */
-let DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1, agreed:false };
+let DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1, agreed:false, relayUrl:'' };
+
+/* short-lived conversation memory (this session only, never saved) */
+let convo = [];
 
 async function load(){
   const d = await store.get('data');
@@ -446,7 +464,43 @@ en:{
   disclaimer:'Mind Companion is a personal memory aid. It is not a medical device and does not give medical advice. It does not sound alarms and must not be relied on as a medication reminder. Always follow the instructions of your doctor or pharmacist. In an emergency, call 911 or your local emergency number. Information is stored only on this device; if browser data is cleared, it will be lost.',
   exportOk:'Backup file saved.',
   importAsk:'Restore this backup? Everything currently in the app will be replaced.',
-  importOk:'Backup restored.', importBad:'That file could not be read. Please choose a Mind Companion backup file.'
+  importOk:'Backup restored.', importBad:'That file could not be read. Please choose a Mind Companion backup file.',
+  /* conversation */
+  exLbl:'You can ask me things like:',
+  examples:['What day is it today?','Did I take my medicine?','Who is my doctor?'],
+  thinking:'One moment…',
+  greetBack:'Good morning.', greetBackA:'Hello.', greetBackE:'Good evening.',
+  howAreYou:'I am doing well, thank you. How are you feeling today?',
+  thanks:'You are very welcome.',
+  notSure:'I am not sure about that one. You can ask me what day it is, whether you took your medicine, or who your doctor is.',
+  setAiTitle:'Conversation',
+  setAiHint:'With a connection address, the app can hold a real conversation instead of only answering set questions.',
+  lbRelay:'Connection address', setTest:'Test',
+  setAiNote:'Leave this empty to use the app without a connection. It will still answer questions about the day, medicine, contacts, and notes.',
+  relayOk:'Connected. Conversation is on.',
+  relayBad:'Could not reach that address. Please check it and try again.',
+  relayCleared:'Connection removed. The app will use its built-in answers.',
+  relaySaved:'Saved.',
+  aiFail:'I could not connect just now, so I will answer from what is saved here.',
+  sysPrompt:`You are a warm, patient companion for an older adult who may have memory difficulty. You are speaking through a phone app; your reply is read aloud.
+
+HOW TO SPEAK
+- Short sentences. One idea at a time. Two or three sentences at most.
+- Plain, everyday words. No lists, no bullet points, no formatting marks — your text is spoken aloud.
+- Calm and kind, never rushed, never patronising. Speak to an adult, not a child.
+- If the same question is asked again, answer again as if for the first time. Never say "you already asked" or "as I said".
+- If the person seems confused or upset, be reassuring first and keep the answer very simple.
+
+WHAT YOU KNOW
+- Personal facts come only from the saved information given to you below. Never invent a name, phone number, address, or medicine.
+- If something is not in the saved information, say kindly that it is not written down, and suggest adding it to Notes.
+- General everyday questions, conversation, and companionship are welcome. Answer those naturally.
+
+SAFETY — THIS MATTERS MOST
+- You are not a doctor or a nurse. Never diagnose, never advise on taking, skipping, changing, or combining medicine, never interpret symptoms.
+- For anything about health, symptoms, pain, or medicine decisions, warmly direct them to their doctor or pharmacist.
+- If they describe chest pain, trouble breathing, weakness on one side, a fall, bleeding, or anything that sounds like an emergency, tell them plainly to call 911 right now, and mention the red Help button in the app.
+- If they sound lonely, sad, or frightened, listen and be kind, and gently suggest calling a family member.`
 },
 ko:{
   htmlLang:'ko', voice:'ko-KR', sizeBtn:'가',
@@ -506,7 +560,42 @@ ko:{
   disclaimer:'Mind Companion은 기억을 돕는 보조 도구입니다. 의료기기가 아니며 의학적 조언을 제공하지 않습니다. 알람이 울리지 않으므로 복약 알림 수단으로 의존하면 안 됩니다. 반드시 의사·약사의 지시를 따르십시오. 응급 상황에서는 911 또는 지역 응급번호로 전화하십시오. 정보는 이 기기에만 저장되며, 브라우저 데이터를 지우면 사라집니다.',
   exportOk:'백업 파일을 저장했습니다.',
   importAsk:'이 백업으로 복원할까요? 현재 앱에 있는 내용은 모두 교체됩니다.',
-  importOk:'복원했습니다.', importBad:'파일을 읽을 수 없습니다. Mind Companion 백업 파일을 선택해 주세요.'
+  importOk:'복원했습니다.', importBad:'파일을 읽을 수 없습니다. Mind Companion 백업 파일을 선택해 주세요.',
+  exLbl:'이런 것을 물어보실 수 있습니다:',
+  examples:['오늘 며칠이지?','약 먹었나?','내 주치의가 누구지?'],
+  thinking:'잠시만요…',
+  greetBack:'좋은 아침입니다.', greetBackA:'안녕하세요.', greetBackE:'좋은 저녁입니다.',
+  howAreYou:'저는 잘 있습니다. 오늘 몸은 어떠신가요?',
+  thanks:'천만에요.',
+  notSure:'그건 잘 모르겠습니다. 오늘 날짜, 약을 드셨는지, 주치의가 누구인지 물어보실 수 있습니다.',
+  setAiTitle:'대화',
+  setAiHint:'연결 주소를 넣으면 정해진 질문만이 아니라 실제 대화를 나눌 수 있습니다.',
+  lbRelay:'연결 주소', setTest:'연결 확인',
+  setAiNote:'비워 두어도 앱은 작동합니다. 날짜, 약, 연락처, 노트에 대한 답은 그대로 됩니다.',
+  relayOk:'연결되었습니다. 대화 기능이 켜졌습니다.',
+  relayBad:'주소에 연결할 수 없습니다. 주소를 확인하고 다시 시도해 주세요.',
+  relayCleared:'연결을 해제했습니다. 기본 답변만 사용합니다.',
+  relaySaved:'저장했습니다.',
+  aiFail:'지금은 연결이 되지 않아, 저장된 내용으로만 답해 드리겠습니다.',
+  sysPrompt:`당신은 기억이 예전 같지 않으신 어르신 곁을 지키는 다정하고 인내심 있는 말벗입니다. 휴대폰 앱을 통해 이야기하며, 당신의 답변은 소리로 읽어 드립니다.
+
+말하는 방식
+- 문장은 짧게. 한 번에 한 가지만. 많아야 두세 문장.
+- 쉽고 일상적인 말로. 목록이나 기호는 쓰지 마세요. 소리로 읽히는 글입니다.
+- 차분하고 따뜻하게. 재촉하지 말고, 아이 대하듯 하지 마세요. 어른께 말씀드리는 것입니다.
+- 같은 질문을 다시 하셔도 처음처럼 다시 답하세요. "아까 물어보셨다"는 말은 절대 하지 마세요.
+- 혼란스러워하거나 속상해하시면 먼저 안심시켜 드리고, 답은 아주 간단하게 하세요.
+
+아는 것
+- 개인적인 사실은 아래 저장된 정보에서만 가져오세요. 이름, 전화번호, 주소, 약을 지어내지 마세요.
+- 저장된 정보에 없으면, 적혀 있지 않다고 부드럽게 말씀드리고 노트에 적어두시길 권하세요.
+- 일상적인 질문이나 그냥 나누는 이야기는 환영입니다. 자연스럽게 답하세요.
+
+안전 — 가장 중요합니다
+- 당신은 의사나 간호사가 아닙니다. 진단하지 말고, 약을 먹으라·거르라·바꾸라·같이 먹으라는 말을 절대 하지 말고, 증상을 해석하지 마세요.
+- 건강, 증상, 통증, 약에 관한 판단은 따뜻하게 의사나 약사에게 여쭤보시도록 안내하세요.
+- 가슴 통증, 숨쉬기 힘듦, 한쪽 몸에 힘이 빠짐, 넘어짐, 출혈 등 응급으로 들리는 말씀을 하시면, 지금 바로 911에 전화하시라고 분명히 말씀드리고 앱의 빨간 도움 버튼을 알려 드리세요.
+- 외로워하거나 슬퍼하거나 두려워하시면, 잘 들어드리고 가족에게 전화해 보시라고 부드럽게 권하세요.`
 }};
 const t = () => T[DB.lang] || T.en;
 
@@ -606,32 +695,148 @@ const KW = {
   doctor:['의사','병원','주치의','doctor','clinic','physician'],
   pharmacy:['약국','pharmacy','pharmacist'],
   repair:['수리','고장','기사','repair','fix','plumber','technician','softener'],
-  family:['딸','아들','가족','자식','daughter','son','family','kid','child']
+  family:['딸','아들','가족','자식','daughter','son','family','kid','child'],
+  greet:['안녕','좋은 아침','좋은 저녁','hello','hi','good morning','good afternoon','good evening','hey'],
+  howAreYou:['잘 지내','어떻게 지내','어때','how are you','how do you do','are you ok'],
+  thanks:['고마','감사','thank','thanks','appreciate']
 };
 const hit = (q,arr) => arr.some(k=>q.includes(norm(k)));
 
-function handleQuestion(raw){
+/* main entry: try the conversation relay first, fall back to built-in answers */
+async function handleQuestion(raw){
   const q = norm(raw);
-  let a = '';
-  if (hit(q,KW.timeDate) && !hit(q,KW.medStatus)){
-    a = `${t().today} ${dateString()}, ${timeString()}.`;
-  } else if (hit(q,KW.medStatus)){
-    const left = todaysMeds().filter(m=>!isTaken(m.id));
-    a = left.length===0 ? t().answerMedYes : t().answerMedNo(left.map(m=>m.name).join(', '));
+
+  if (DB.relayUrl){
+    setReply(t().thinking);
+    const a = await askAI(raw);
+    if (a){ setReply(a); say(a); return; }
+    const local = localAnswer(q);
+    setReply(local); say(local);
+    return;
   }
-  else if (hit(q,KW.doctor))   a = contactAnswer('doctor');
-  else if (hit(q,KW.pharmacy)) a = contactAnswer('pharmacy');
-  else if (hit(q,KW.repair))   a = contactAnswer('repair');
-  else if (hit(q,KW.family) && hit(q,KW.call)) a = contactAnswer('family');
-  else {
-    const c = DB.contacts.find(c=>q.includes(norm(c.name)));
-    if (c) a = t().answerCall(c.name,c.phone);
-    else {
-      const n = searchNotes(q);
-      a = n ? `${n.title}: ${n.body}` : t().notFound;
-    }
-  }
+
+  const a = localAnswer(q);
   setReply(a); say(a);
+}
+
+/* built-in answers — used with no connection, or if the connection fails */
+function localAnswer(q){
+  const L = t();
+
+  if (hit(q,KW.thanks) && !hit(q,KW.medStatus)) return L.thanks;
+
+  if (hit(q,KW.howAreYou)) return L.howAreYou;
+
+  if (hit(q,KW.greet) && q.split(' ').length <= 4){
+    const h = new Date().getHours();
+    let g;
+    if (hit(q,['good morning','좋은 아침','아침'])) g = L.greetBack;
+    else if (hit(q,['good evening','good night','좋은 저녁','저녁'])) g = L.greetBackE;
+    else if (hit(q,['good afternoon','점심'])) g = L.greetBackA;
+    else g = h<12 ? L.greetBack : (h<18 ? L.greetBackA : L.greetBackE);
+    const left = todaysMeds().filter(m=>!isTaken(m.id)).length;
+    const med = DB.meds.length===0 ? '' : (left===0 ? ' '+L.allTaken : ' '+L.medLeft(left));
+    return `${g} ${L.today} ${dateString()}.${med}`;
+  }
+
+  if (hit(q,KW.timeDate) && !hit(q,KW.medStatus)){
+    return `${L.today} ${dateString()}, ${timeString()}.`;
+  }
+
+  if (hit(q,KW.medStatus)){
+    const left = todaysMeds().filter(m=>!isTaken(m.id));
+    return left.length===0 ? L.answerMedYes : L.answerMedNo(left.map(m=>m.name).join(', '));
+  }
+
+  if (hit(q,KW.doctor))   return contactAnswer('doctor');
+  if (hit(q,KW.pharmacy)) return contactAnswer('pharmacy');
+  if (hit(q,KW.repair))   return contactAnswer('repair');
+  if (hit(q,KW.family) && hit(q,KW.call)) return contactAnswer('family');
+
+  const c = DB.contacts.find(c=>q.includes(norm(c.name)));
+  if (c) return L.answerCall(c.name,c.phone);
+
+  const n = searchNotes(q);
+  if (n) return `${n.title}: ${n.body}`;
+
+  return L.notSure;
+}
+
+/* ---------------- conversation relay ---------------- */
+function savedContext(){
+  const L = t();
+  const lines = [];
+  const me = DB.me;
+
+  lines.push(`Today is ${dateString()}. The time is ${timeString()}.`);
+
+  if (me.name || me.addr || me.cond || me.blood){
+    lines.push('About the person:');
+    if (me.name)  lines.push(`  Name: ${me.name}`);
+    if (me.addr)  lines.push(`  Address: ${me.addr}`);
+    if (me.cond)  lines.push(`  Conditions and allergies: ${me.cond}`);
+    if (me.blood) lines.push(`  Blood type: ${me.blood}`);
+  }
+
+  if (DB.meds.length){
+    lines.push('Medicine saved in the app (taken status is for today):');
+    DB.meds.forEach(m=>{
+      lines.push(`  ${m.name} — ${L.times[m.time]||m.time}${m.note?', '+m.note:''} — ${isTaken(m.id)?'already taken today':'not taken yet today'}`);
+    });
+  } else {
+    lines.push('No medicine has been saved in the app.');
+  }
+
+  if (DB.contacts.length){
+    lines.push('Contacts saved in the app:');
+    DB.contacts.forEach(c=>lines.push(`  ${c.name} (${L.roles[c.role]||c.role}) — ${c.phone}`));
+  } else {
+    lines.push('No contacts have been saved in the app.');
+  }
+
+  if (DB.notes.length){
+    lines.push('Memory notes saved in the app:');
+    DB.notes.slice(-40).forEach(n=>lines.push(`  ${n.title}: ${n.body}`));
+  } else {
+    lines.push('No memory notes have been saved in the app.');
+  }
+
+  return lines.join('\n');
+}
+
+async function askAI(userText){
+  const L = t();
+  const system = `${L.sysPrompt}
+
+Reply in ${DB.lang==='ko' ? 'Korean' : 'English'}.
+
+--- SAVED INFORMATION ---
+${savedContext()}
+--- END OF SAVED INFORMATION ---`;
+
+  convo.push({role:'user', content:userText});
+  if (convo.length > 8) convo = convo.slice(-8);
+
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 20000);
+    const res = await fetch(DB.relayUrl, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ system, messages: convo }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) throw new Error('relay');
+    const data = await res.json();
+    const text = (data && data.text || '').trim();
+    if (!text) throw new Error('empty');
+    convo.push({role:'assistant', content:text});
+    return text;
+  }catch(e){
+    convo.pop();
+    return null;
+  }
 }
 
 function contactAnswer(role){
@@ -639,16 +844,20 @@ function contactAnswer(role){
   return c ? t().answerCall(c.name,c.phone) : t().notFound;
 }
 
+const STOP = new Set(['the','a','an','of','in','on','at','to','is','it','my','me','i','and','or','for','with','that','this','was','are','be','do','did','you','what','where','who','when','how','있','있는','그','저','내','나','것','수','좀']);
+
 function searchNotes(q){
   let best = null, score = 0;
   DB.notes.forEach(n=>{
-    const words = norm(n.title+' '+n.body).split(' ').filter(w=>w.length>1);
     let s = 0;
-    if (q.includes(norm(n.title))) s += 10;
-    words.forEach(w=>{ if (q.includes(w)) s += w.length>=2 ? 2 : 1; });
+    const title = norm(n.title);
+    if (title.length>1 && q.includes(title)) s += 10;
+    norm(n.title+' '+n.body).split(' ')
+      .filter(w=>w.length>2 && !STOP.has(w))
+      .forEach(w=>{ if (q.includes(w)) s += 3; });
     if (s>score){ score=s; best=n; }
   });
-  return score>=4 ? best : null;
+  return score>=6 ? best : null;
 }
 
 /* ---------------- meds ---------------- */
@@ -720,7 +929,20 @@ function render(){
       <span>${esc(me.addr||'')}${me.blood?' · '+esc(me.blood):''}${me.cond?'<br>'+esc(me.cond):''}</span>
     </div></div>` : `<div class="empty">${L.noMe}</div>`;
 
+  document.getElementById('examples').innerHTML = L.examples.map(q=>
+    `<button class="btn ghost small" style="margin-top:8px" onclick="askExample(${JSON.stringify(q).replace(/"/g,'&quot;')})">
+       <span class="ic">💬</span><span>${esc(q)}</span></button>`).join('');
+
+  const ru = document.getElementById('relayUrl');
+  if (ru && document.activeElement !== ru) ru.value = DB.relayUrl || '';
+
   applyLangText();
+}
+
+function askExample(q){
+  go('home');
+  setHeard(q);
+  handleQuestion(q);
 }
 
 function timeString(){
@@ -756,6 +978,9 @@ function applyLangText(){
   set('setLangTitle',L.setLangTitle); set('setLangNote',L.setLangNote);
   set('setBackupTitle',L.setBackupTitle); set('setBackupHint',L.setBackupHint);
   set('setExport',L.setExport); set('setImport',L.setImport);
+  set('setAiTitle',L.setAiTitle); set('setAiHint',L.setAiHint);
+  set('lbRelay',L.lbRelay); set('setTest',L.setTest); set('setAiNote',L.setAiNote);
+  set('exLbl',L.exLbl);
   set('setNoticeTitle',L.setNoticeTitle); set('setBack',L.setBack); set('setAboutTitle',L.setAboutTitle);
   set('aboutText',L.about); set('disclaimerText',L.disclaimer);
   set('frTitle',L.frTitle); set('frText',L.disclaimer); set('frOk',L.frOk);
@@ -874,6 +1099,46 @@ async function bumpScale(){
   document.documentElement.style.setProperty('--scale',DB.scale);
   updateSizeBtn();
   await save();
+}
+
+/* ---------------- conversation settings ---------------- */
+function relayNote(msg,ok){
+  document.getElementById('relayStatus').innerHTML = msg
+    ? `<div class="${ok?'notice':'warn'}">${esc(msg)}</div>` : '';
+}
+
+async function saveRelay(){
+  const v = document.getElementById('relayUrl').value.trim();
+  DB.relayUrl = v;
+  convo = [];
+  await save();
+  relayNote(v ? t().relaySaved : t().relayCleared, true);
+  render();
+}
+
+async function testRelay(){
+  const v = document.getElementById('relayUrl').value.trim();
+  if (!v){ relayNote(t().relayCleared,true); return; }
+  relayNote(t().thinking,true);
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 15000);
+    const res = await fetch(v, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ system:'Reply with the single word: ready', messages:[{role:'user',content:'ready?'}] }),
+      signal: ctrl.signal
+    });
+    clearTimeout(timer);
+    const data = await res.json();
+    if (!res.ok || !data || !data.text) throw new Error('bad');
+    DB.relayUrl = v; convo = [];
+    await save();
+    relayNote(t().relayOk,true);
+    render();
+  }catch(e){
+    relayNote(t().relayBad,false);
+  }
 }
 
 /* ---------------- backup / restore ---------------- */

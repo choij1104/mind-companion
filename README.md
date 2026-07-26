@@ -28,7 +28,20 @@ Ask by voice and the app answers from what is stored:
 - "Who is my doctor?"
 - "Where is my passport?"
 
-If nothing matches, it says so and invites you to write it in Notes.
+## Conversation
+
+Out of the box the app answers from fixed rules — the day, medicine, contacts, notes, and
+greetings. It works offline and sends nothing anywhere.
+
+Connect it to a small free relay and it holds an actual conversation instead: the person can
+say anything and get a natural spoken reply, informed by what is saved in the app. Setup takes
+about ten minutes and is described in **[SETUP-CONVERSATION.md](SETUP-CONVERSATION.md)**.
+
+The relay exists so the API key stays off the public web page. Conversation is optional and
+off until an address is entered in Settings.
+
+Whichever mode is used, the app never diagnoses, never advises on medicine, and directs
+health questions to a doctor or pharmacist.
 
 ## Designed for older users
 
@@ -77,7 +90,7 @@ git clone https://github.com/choij1104/mind-companion.git
 cd mind-companion
 # copy the files in, then
 git add .
-git commit -m "Mind Companion v1.2"
+git commit -m "Mind Companion v1.3"
 git push origin main
 ```
 
@@ -89,6 +102,7 @@ Files:
 index.html                 the whole app
 manifest.json              PWA metadata
 sw.js                      offline cache
+worker.js                  optional relay — NOT uploaded to GitHub Pages
 icon-192.png               app icons
 icon-512.png
 icon-maskable-512.png
@@ -96,9 +110,13 @@ apple-touch-icon.png
 favicon-32.png
 .nojekyll                  serve files as-is
 README.md
+SETUP-CONVERSATION.md
 PRIVACY.md
 LICENSE
 ```
+
+`worker.js` is not part of the website. It is pasted into a Cloudflare Worker; see
+SETUP-CONVERSATION.md. Keeping it in the repository is fine — it holds no key.
 
 When releasing an update, bump `CACHE` in `sw.js` (for example `mind-companion-v1.3`)
 so devices pick up the new version instead of serving the old cache.

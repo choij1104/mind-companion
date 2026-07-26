@@ -1,5 +1,5 @@
 /* Mind Companion service worker — offline-first shell cache */
-const CACHE = 'mind-companion-v1.2';
+const CACHE = 'mind-companion-v1.3';
 const ASSETS = [
   './',
   './index.html',
