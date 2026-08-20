@@ -1,5 +1,6 @@
-/* Mind Companion service worker — offline-first shell cache */
-const CACHE = 'mind-companion-v1.3';
+/* Mind Companion service worker — offline-first shell cache
+   IMPORTANT: bump CACHE on every release, or old assets stay on the device. */
+const CACHE = 'mind-companion-v1.5';
 const ASSETS = [
   './',
   './index.html',
@@ -27,7 +28,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  // navigation: network first, fall back to cached shell
+  // navigation: network first, fall back to the cached shell
   if (req.mode === 'navigate') {
     e.respondWith(
       fetch(req).then(res => {
@@ -39,12 +40,15 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // assets: cache first
+  // assets: cache first, then network, then a clean offline response
   e.respondWith(
-    caches.match(req).then(hit => hit || fetch(req).then(res => {
-      const copy = res.clone();
-      caches.open(CACHE).then(c => c.put(req, copy));
-      return res;
-    }).catch(() => hit))
+    caches.match(req).then(hit => {
+      if (hit) return hit;
+      return fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy));
+        return res;
+      }).catch(() => new Response('', { status: 504, statusText: 'Offline' }));
+    })
   );
 });

@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Mind Companion** · Last updated: July 2026
+**Mind Companion** · Last updated: August 2026
 
 ## Short version
 
@@ -14,7 +14,9 @@ The following are saved in the browser's local storage on the device, and nowher
 - Contact names, phone numbers, and roles
 - Memory notes
 - Personal information entered on the Help screen (name, address, conditions, allergies, blood type)
-- Preferences (language, text size)
+- Daily mood entries, and the answers to the two-question mind check (the most recent 24 are kept)
+- The counselor's name, organization, and phone number, if entered
+- Preferences (language, text size, Simple Mode)
 
 ## What is not done
 
@@ -23,6 +25,14 @@ The following are saved in the browser's local storage on the device, and nowher
 - No transmission of any entered information to any server
 - No sharing with third parties
 
+## Reports and exports
+
+The counseling summary page, the 4-week report, the CSV data file, and the backup file are
+created on the device and saved to the device. Nothing is uploaded when any of them is made.
+Once a file has been saved, shared, or printed, it is an ordinary document outside the app's
+control — the 4-week report and the CSV contain mood entries, mind check answers, and medicine
+marks, so treat them as personal health information.
+
 ## Conversation (optional, off by default)
 
 The app ships with conversation turned off and works entirely on the device.
@@ -30,7 +40,8 @@ The app ships with conversation turned off and works entirely on the device.
 If a connection address is entered in Settings, each question is sent to a relay controlled by
 whoever set the app up, and from there to Anthropic's API to produce a reply. To make replies
 accurate, the message is accompanied by what is saved in the app: medicine, contacts, memory
-notes, and the personal details on the Help screen. This is transmitted only at the moment a
+notes, the personal details on the Help screen, the counselor's contact if entered, and the
+mood recorded today. This is transmitted only at the moment a
 question is asked, and only while a connection address is set.
 
 Clearing the connection address in Settings stops all of this immediately.
@@ -65,4 +76,4 @@ The app is not directed at children.
 Questions about this policy: open an issue at
 https://github.com/choij1104/mind-companion/issues
 
-© 2026 Jae Hyek Choi
+© 2026 Jae Hyek Choi / HAKOYA LLC
