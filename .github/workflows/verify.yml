@@ -1,0 +1,39 @@
+name: Verify
+
+# Runs on every push, on pull requests, and once a week so a problem that
+# appears without anyone touching the code still gets noticed.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 13 * * 1'   # Mondays, 08:00 America/Chicago
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: Release guards, translations, browser
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install browser
+        run: |
+          python -m pip install --quiet playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Release guards
+        run: python3 .github/scripts/guards.py
+
+      - name: Translation parity — English, Korean, Spanish, Japanese
+        run: python3 .github/scripts/i18n_check.py index.html
+
+      - name: Every screen, every language, small phone
+        run: python3 .github/scripts/qa_smoke.py index.html --width 320
+
+      - name: Every screen, every language, normal phone
+        run: python3 .github/scripts/qa_smoke.py index.html --width 390
