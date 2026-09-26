@@ -87,6 +87,7 @@ button{font-family:inherit;}
 .mic.live{background:var(--red);}
 .mic.live .dot{animation:pulse 1.1s ease-in-out infinite;}
 @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.18);opacity:.75}}
+@keyframes shake{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
 @media (prefers-reduced-motion:reduce){.mic.live .dot{animation:none}}
 
 .transcript{margin-top:12px;padding:14px;border-radius:12px;background:#FBF7EC;border:1px solid var(--line);font-size:1.12rem;min-height:56px;}
@@ -231,6 +232,11 @@ body.hc .topbar .brand{color:#fff;}
     </div>
 
     <div class="card">
+      <button class="btn green" style="min-height:88px;font-size:1.3rem;justify-content:center" onclick="go('routine')"><span class="ic">📋</span><span id="routineBtn">Daily routine</span></button>
+      <p class="muted" id="routineNowLbl" style="margin:10px 0 0"></p>
+    </div>
+
+    <div class="card">
       <h3 id="todayMedTitle">Today's medicine</h3>
       <div id="homeMeds"></div>
     </div>
@@ -263,6 +269,27 @@ body.hc .topbar .brand{color:#fff;}
     </div>
   </section>
 
+  <!-- ================= ROUTINE ================= -->
+  <section class="view" id="v-routine">
+    <div class="card">
+      <h2 id="routineTitle">📋 Daily routine</h2>
+      <p class="muted" id="routineHint"></p>
+      <div id="routineNow"></div>
+      <div id="routineList" style="margin-top:12px"></div>
+      <button class="btn ghost" onclick="showForm('routine')"><span class="ic">➕</span><span id="routineAddLbl">Add routine item</span></button>
+      <div id="routineForm" style="display:none">
+        <label id="lbRTime">Time</label>
+        <input id="rTime" type="time">
+        <label id="lbRWhat">What to do</label>
+        <input id="rWhat" placeholder="">
+        <div class="row2" style="margin-top:14px">
+          <button class="btn green small" onclick="saveRoutine()"><span class="ic">✔</span><span class="sv">Save</span></button>
+          <button class="btn ghost small" onclick="showForm(null)"><span class="ic">✕</span><span class="cx">Cancel</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= MEDS ================= -->
   <section class="view" id="v-meds">
     <div class="card">
@@ -282,6 +309,8 @@ body.hc .topbar .brand{color:#fff;}
         </select>
         <label id="lbMedNote">Note (optional)</label>
         <input id="medNote" placeholder="e.g., 30 minutes after a meal">
+        <label id="lbMedAlarm">⏰ Alarm (optional)</label>
+        <input id="medAlarm" type="time">
         <div class="row2" style="margin-top:14px">
           <button class="btn green small" onclick="saveMed()"><span class="ic">✔</span><span class="sv">Save</span></button>
           <button class="btn ghost small" onclick="showForm(null)"><span class="ic">✕</span><span class="cx">Cancel</span></button>
@@ -351,6 +380,8 @@ body.hc .topbar .brand{color:#fff;}
       <h2 id="sosTitle">🚑 Get help</h2>
       <p class="muted" id="sosHint">Press the big button in an emergency.</p>
       <a href="tel:911" style="text-decoration:none"><button class="btn red" style="min-height:96px;font-size:1.5rem"><span class="ic">🚨</span><span id="call911">Call 911</span></button></a>
+      <button class="btn" style="min-height:96px;font-size:1.5rem;background:#b97a0c;margin-top:10px" onclick="lostTap()"><span class="ic">🧭</span><span id="lostBtn">I am lost</span></button>
+      <p class="muted" id="lostHint" style="margin-top:8px"></p>
       <div id="sosList" style="margin-top:12px"></div>
       <p class="muted" id="sosSetHint" style="margin-top:10px"></p>
     </div>
@@ -501,8 +532,29 @@ body.hc .topbar .brand{color:#fff;}
     </div>
   </div>
 
+  <!-- alarm modal -->
+  <div class="modal" id="alarmModal">
+    <div class="modalbox" style="text-align:center">
+      <div style="font-size:3.5rem;animation:shake 0.6s infinite">💊</div>
+      <h2 id="alarmTitle" style="font-size:1.6rem">Time for your medicine!</h2>
+      <div id="alarmMeds" style="margin:12px 0;font-size:1.25rem;font-weight:700;line-height:1.6"></div>
+      <button class="btn green" style="min-height:88px;font-size:1.35rem;justify-content:center" onclick="alarmTook()"><span class="ic">✔</span><span id="alarmTookLbl">I took it</span></button>
+      <button class="btn ghost" style="margin-top:10px" onclick="alarmSnooze()"><span class="ic">⏰</span><span id="alarmSnoozeLbl">Remind me in 10 min</span></button>
+    </div>
+  </div>
+
+  <!-- lost modal -->
+  <div class="modal" id="lostModal">
+    <div class="modalbox">
+      <h2 id="lostTitle">🧭 Send my location</h2>
+      <div id="lostStatus" class="muted" style="margin-bottom:10px"></div>
+      <div id="lostList"></div>
+      <button class="btn ghost small" style="margin-top:12px" onclick="lostClose()"><span class="ic">✕</span><span id="lostCloseLbl">Close</span></button>
+    </div>
+  </div>
+
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.7 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.8 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
   </div>
 </div>
 
@@ -557,7 +609,7 @@ body.hc .topbar .brand{color:#fff;}
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -585,7 +637,7 @@ const store = {
 };
 
 /* ---------------- state ---------------- */
-let DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1, agreed:false, relayUrl:'', mood:{}, checks:[], counselor:{}, simpleMode:false, hc:false };
+let DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1, agreed:false, relayUrl:'', mood:{}, checks:[], counselor:{}, simpleMode:false, hc:false, routine:[] };
 
 /* short-lived conversation memory (this session only, never saved) */
 let convo = [];
@@ -606,7 +658,7 @@ en:{
   heardLbl:'I heard', replyLbl:'Answer', typeAsk:'Type a question instead',
   todayMed:"Today's medicine", medsTitle:'💊 Medicine', medsHint:'Tap the big square when you have taken it.',
   addMed:'Add medicine', mName:'Medicine name', mTime:'When to take', mNote:'Note (optional)',
-  medDisclaim:'This list is a reminder only. It does not send alarms and does not replace instructions from your doctor or pharmacist.',
+  medDisclaim:'Reminders sound only while the app is open. They do not replace instructions from your doctor or pharmacist.',
   contactsTitle:'📞 Contacts', contactsHint:'Press the green button to call right away.',
   addContact:'Add contact', cName:'Name', cPhone:'Phone number', cRole:'Relationship / role',
   notesTitle:'📝 Memory notes', notesHint:'Write down where things are, hints, or anything important — then ask by voice.',
@@ -674,6 +726,26 @@ en:{
   memClose:'Close', memDelete:'Delete', memSaved:'Saved!',
   memMicDenied:'Microphone is blocked. Please allow microphone access and try again.',
   memNeedPhoto:'Please take a photo first.',
+  alarmLbl:'⏰ Alarm (optional)',
+  alarmTakeNow:'💊 Time for your medicine!',
+  alarmTook:'I took it ✔',
+  alarmSnooze:'Remind me in 10 min',
+  lostBtn:'🧭 I am lost',
+  lostHint:'Press, then choose who gets your location.',
+  lostTitle:'🧭 Send my location',
+  lostNoFam:'Add a family contact first, so they can receive your location.',
+  lostLocating:'Finding your location…',
+  lostSmsBody:'I am lost. This is {name}. My location: {link}. Please help me.',
+  lostSmsNoLoc:'I am lost. This is {name}. Please call me.',
+  routineBtn:'📋 Daily routine',
+  routineHint:'What to do and when — tap the big square when done.',
+  routineNow:'👉 Now',
+  routineNext:'⏭ Next',
+  routineAllDone:'All done for today!',
+  routineEmpty:'No routine yet. Add the first item below.',
+  routineAdd:'Add routine item',
+  routineTime:'Time',
+  routineWhat:'What to do',
   howAreYou:'I am doing well, thank you. How are you feeling today?',
   thanks:'You are very welcome.',
   notSure:'I am not sure about that one. You can ask me what day it is, whether you took your medicine, or who your doctor is.',
@@ -758,7 +830,7 @@ ko:{
   heardLbl:'들은 내용', replyLbl:'대답', typeAsk:'글자로 물어보기',
   todayMed:'오늘 먹을 약', medsTitle:'💊 약', medsHint:'먹은 약은 큰 네모를 눌러 표시하세요.',
   addMed:'약 추가', mName:'약 이름', mTime:'먹는 시간', mNote:'메모 (선택)',
-  medDisclaim:'이 목록은 참고용 기록일 뿐입니다. 알람이 울리지 않으며, 의사·약사의 지시를 대신하지 않습니다.',
+  medDisclaim:'알림은 앱이 열려 있을 때만 울립니다. 의사·약사의 지시를 대신하지 않아요.',
   contactsTitle:'📞 연락처', contactsHint:'초록 버튼을 누르면 바로 전화가 걸립니다.',
   addContact:'연락처 추가', cName:'이름', cPhone:'전화번호', cRole:'관계 / 역할',
   notesTitle:'📝 기억 노트', notesHint:'물건 둔 곳, 비밀번호 힌트, 중요한 일을 적어두면 음성으로 찾을 수 있습니다.',
@@ -824,6 +896,26 @@ ko:{
   memClose:'닫기', memDelete:'삭제', memSaved:'저장됐어요!',
   memMicDenied:'마이크가 차단됐어요. 마이크 접근을 허용한 뒤 다시 시도해주세요.',
   memNeedPhoto:'먼저 사진을 찍어주세요.',
+  alarmLbl:'⏰ 알림 (선택사항)',
+  alarmTakeNow:'💊 약 드실 시간이에요!',
+  alarmTook:'먹었어요 ✔',
+  alarmSnooze:'10분 후에 다시 알려줘',
+  lostBtn:'🧭 길 잃었어요',
+  lostHint:'누른 뒤 위치를 받을 사람을 고르세요.',
+  lostTitle:'🧭 내 위치 보내기',
+  lostNoFam:'먼저 가족 연락처를 추가해주세요.',
+  lostLocating:'위치를 찾는 중…',
+  lostSmsBody:'길 잃었어요. {name}입니다. 제 위치: {link}. 도와주세요.',
+  lostSmsNoLoc:'길 잃었어요. {name}입니다. 전화 주세요.',
+  routineBtn:'📋 하루 일과',
+  routineHint:'언제 뭘 할지 — 끝나면 큰 네모를 누르세요.',
+  routineNow:'👉 지금',
+  routineNext:'⏭ 다음',
+  routineAllDone:'오늘 할 일 다 했어요!',
+  routineEmpty:'아직 일과가 없어요. 아래에서 추가하세요.',
+  routineAdd:'일과 추가하기',
+  routineTime:'시간',
+  routineWhat:'할 일',
   howAreYou:'저는 잘 있습니다. 오늘 몸은 어떠신가요?',
   thanks:'천만에요.',
   notSure:'그건 잘 모르겠습니다. 오늘 날짜, 약을 드셨는지, 주치의가 누구인지 물어보실 수 있습니다.',
@@ -908,7 +1000,7 @@ es:{
   heardLbl:'Escuché', replyLbl:'Respuesta', typeAsk:'Escribir una pregunta',
   todayMed:'Medicinas de hoy', medsTitle:'💊 Medicinas', medsHint:'Toque el cuadro grande cuando la haya tomado.',
   addMed:'Agregar medicina', mName:'Nombre de la medicina', mTime:'Cuándo tomarla', mNote:'Nota (opcional)',
-  medDisclaim:'Esta lista es solo un recordatorio. No suena alarmas y no reemplaza las indicaciones de su médico o farmacéutico.',
+  medDisclaim:'Las alarmas solo suenan con la app abierta. No sustituyen las indicaciones de tu médico o farmacéutico.',
   contactsTitle:'📞 Contactos', contactsHint:'Presione el botón verde para llamar de inmediato.',
   addContact:'Agregar contacto', cName:'Nombre', cPhone:'Número de teléfono', cRole:'Relación / función',
   notesTitle:'📝 Notas de memoria', notesHint:'Escriba dónde están las cosas o algo importante — luego pregunte por voz.',
@@ -974,6 +1066,26 @@ es:{
   memClose:'Cerrar', memDelete:'Eliminar', memSaved:'¡Guardado!',
   memMicDenied:'El micrófono está bloqueado. Permite el acceso al micrófono e inténtalo de nuevo.',
   memNeedPhoto:'Primero toma una foto.',
+  alarmLbl:'⏰ Alarma (opcional)',
+  alarmTakeNow:'💊 ¡Hora de tu medicina!',
+  alarmTook:'Ya la tomé ✔',
+  alarmSnooze:'Avísame en 10 min',
+  lostBtn:'🧭 Me perdí',
+  lostHint:'Pulsa y elige quién recibe tu ubicación.',
+  lostTitle:'🧭 Enviar mi ubicación',
+  lostNoFam:'Agrega un contacto familiar primero.',
+  lostLocating:'Buscando tu ubicación…',
+  lostSmsBody:'Me perdí. Soy {name}. Mi ubicación: {link}. Ayúdame, por favor.',
+  lostSmsNoLoc:'Me perdí. Soy {name}. Por favor, llámame.',
+  routineBtn:'📋 Rutina diaria',
+  routineHint:'Qué hacer y cuándo — pulsa el cuadrado grande al terminar.',
+  routineNow:'👉 Ahora',
+  routineNext:'⏭ Siguiente',
+  routineAllDone:'¡Todo listo por hoy!',
+  routineEmpty:'Sin rutina aún. Agrega el primer punto abajo.',
+  routineAdd:'Agregar punto',
+  routineTime:'Hora',
+  routineWhat:'Qué hacer',
   howAreYou:'Estoy bien, gracias. ¿Cómo se siente usted hoy?',
   thanks:'Con mucho gusto.',
   notSure:'No estoy seguro de eso. Puede preguntarme qué día es, si tomó sus medicinas, o quién es su médico.',
@@ -1058,7 +1170,7 @@ ja:{
   heardLbl:'聞いた内容', replyLbl:'答え', typeAsk:'文字で質問する',
   todayMed:'今日のお薬', medsTitle:'💊 お薬', medsHint:'飲んだら大きい四角を押してください。',
   addMed:'お薬を追加', mName:'お薬の名前', mTime:'飲む時間', mNote:'メモ(任意)',
-  medDisclaim:'この一覧は記録のためのものです。アラームは鳴りません。医師・薬剤師の指示に代わるものではありません。',
+  medDisclaim:'アラームはアプリを開いているときのみ鳴ります。医師・薬剤師の指示に代わるものではありません。',
   contactsTitle:'📞 連絡先', contactsHint:'緑のボタンを押すと、すぐに電話がかかります。',
   addContact:'連絡先を追加', cName:'名前', cPhone:'電話番号', cRole:'関係 / 役割',
   notesTitle:'📝 覚えのノート', notesHint:'物の置き場所や大事なことを書いておくと、声で聞いて探せます。',
@@ -1124,6 +1236,26 @@ ja:{
   memClose:'閉じる', memDelete:'削除', memSaved:'保存しました!',
   memMicDenied:'マイクがブロックされています。マイクへのアクセスを許可して、もう一度お試しください。',
   memNeedPhoto:'先に写真を撮ってください。',
+  alarmLbl:'⏰ アラーム(任意)',
+  alarmTakeNow:'💊 お薬の時間です!',
+  alarmTook:'飲みました ✔',
+  alarmSnooze:'10分後に再通知',
+  lostBtn:'🧭 道に迷いました',
+  lostHint:'押して、位置情報を送る相手を選んでください。',
+  lostTitle:'🧭 位置情報を送る',
+  lostNoFam:'先に家族の連絡先を追加してください。',
+  lostLocating:'位置情報を取得中…',
+  lostSmsBody:'道に迷いました。{name}です。私の位置: {link}。助けてください。',
+  lostSmsNoLoc:'道に迷いました。{name}です。電話してください。',
+  routineBtn:'📋 毎日の予定',
+  routineHint:'いつ何をするか — 終わったら大きな四角を押してください。',
+  routineNow:'👉 今',
+  routineNext:'⏭ 次',
+  routineAllDone:'今日は全部できました!',
+  routineEmpty:'まだ予定がありません。下から追加してください。',
+  routineAdd:'予定を追加',
+  routineTime:'時間',
+  routineWhat:'やること',
   howAreYou:'私は元気です。今日のご気分はいかがですか?',
   thanks:'どういたしまして。',
   notSure:'それはよく分かりません。今日の日付、薬を飲んだか、お医者さんが誰かを聞いてみてください。',
@@ -1519,9 +1651,181 @@ function medRow(m,compact){
   const on = isTaken(m.id);
   return `<div class="item ${on?'done':''}">
     <button class="tap ${on?'on':''}" onclick="toggleTaken('${m.id}')" aria-label="${esc(m.name)}">${on?'✔':''}</button>
-    <div class="txt"><strong>${esc(m.name)}</strong><span>${t().times[m.time]||''}${m.note?' · '+esc(m.note):''}</span></div>
+    <div class="txt"><strong>${esc(m.name)}</strong><span>${t().times[m.time]||''}${m.alarm?' · ⏰'+m.alarm:''}${m.note?' · '+esc(m.note):''}</span></div>
     ${compact?'':`<button class="tap del" onclick="delItem('meds','${m.id}')" aria-label="delete">🗑</button>`}
   </div>`;
+}
+
+/* ---------------- medication alarms ---------------- */
+let alarmSnoozeUntil = {};   /* medId -> timestamp */
+let alarmFired = {};         /* medId -> 'YYYY-MM-DD' */
+let alarmDueIds = [];
+function alarmSound(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AC();
+    [660,880,660,990].forEach((f,i)=>{
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type='sine'; o.frequency.value=f;
+      const t0 = ctx.currentTime + i*0.35;
+      g.gain.setValueAtTime(0.0001,t0);
+      g.gain.exponentialRampToValueAtTime(0.5,t0+0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0+0.35);
+    });
+  }catch(e){}
+  try{ if (navigator.vibrate) navigator.vibrate([300,150,300]); }catch(e){}
+}
+function nowHHMM(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function checkAlarms(){
+  const hhmm = nowHHMM(), dk = todayKey();
+  const due = DB.meds.filter(m=>{
+    if (!m.alarm) return false;
+    if (isTaken(m.id)) return false;
+    if (alarmFired[m.id]===dk) return false;
+    if (alarmSnoozeUntil[m.id] && Date.now() < alarmSnoozeUntil[m.id]) return false;
+    return m.alarm <= hhmm;
+  });
+  if (due.length) fireAlarm(due);
+}
+function fireAlarm(due){
+  const dk = todayKey(), L = t();
+  alarmDueIds = due.map(m=>m.id);
+  due.forEach(m=>{ alarmFired[m.id]=dk; });
+  document.getElementById('alarmMeds').innerHTML = due.map(m=>`<div>💊 ${esc(m.name)}</div>`).join('');
+  document.getElementById('alarmModal').classList.add('on');
+  alarmSound();
+  try{
+    if ('Notification' in window && Notification.permission==='granted')
+      new Notification(L.alarmTakeNow, {body: due.map(m=>m.name).join(', ')});
+  }catch(e){}
+}
+async function alarmTook(){
+  const k = todayKey();
+  DB.taken[k] = DB.taken[k]||{};
+  alarmDueIds.forEach(id=>{ DB.taken[k][id]=true; });
+  alarmDueIds = [];
+  document.getElementById('alarmModal').classList.remove('on');
+  await save(); render();
+  say(t().alarmTook);
+}
+function alarmSnooze(){
+  alarmDueIds.forEach(id=>{ alarmSnoozeUntil[id]=Date.now()+10*60*1000; });
+  alarmDueIds = [];
+  document.getElementById('alarmModal').classList.remove('on');
+}
+setInterval(checkAlarms, 30000);
+
+/* ---------------- i'm lost: send GPS location by SMS ---------------- */
+let lostPos = null;
+function lostTap(){
+  const L = t();
+  const fam = DB.contacts.filter(c=>c.role==='family');
+  const list = document.getElementById('lostList');
+  const status = document.getElementById('lostStatus');
+  status.textContent = L.lostLocating;
+  document.getElementById('lostModal').classList.add('on');
+  if (!fam.length){
+    status.textContent = '';
+    list.innerHTML = `<div class="warn">${esc(L.lostNoFam)}</div>`;
+    return;
+  }
+  list.innerHTML = fam.map(c=>
+    `<button class="btn green" style="margin-top:8px" onclick="sendLostSms('${c.id}')"><span class="ic">📩</span><span>${esc(c.name)} · ${esc(c.phone)}</span></button>`
+  ).join('');
+  lostPos = null;
+  const clear = ()=>{ if (status.textContent===L.lostLocating) status.textContent=''; };
+  const done = (pos)=>{ lostPos = pos; clear(); };
+  const fail = ()=>{ lostPos = null; clear(); };
+  try{
+    if (navigator.geolocation) navigator.geolocation.getCurrentPosition(done, fail, {timeout:10000, maximumAge:60000});
+    else fail();
+  }catch(e){ fail(); }
+  setTimeout(clear, 12000);
+}
+function sendLostSms(cid){
+  const L = t();
+  const c = DB.contacts.find(x=>x.id===cid);
+  if (!c) return;
+  const me = DB.me.name || '';
+  let body;
+  if (lostPos){
+    const link = 'https://maps.google.com/?q='+lostPos.coords.latitude.toFixed(5)+','+lostPos.coords.longitude.toFixed(5);
+    body = L.lostSmsBody.replace('{name}',me).replace('{link}',link);
+  }else{
+    body = L.lostSmsNoLoc.replace('{name}',me);
+  }
+  lostClose();
+  location.href = 'sms:'+encodeURIComponent(c.phone)+'?&body='+encodeURIComponent(body);
+}
+function lostClose(){ document.getElementById('lostModal').classList.remove('on'); }
+
+/* ---------------- daily routine ---------------- */
+function routineItems(){ return (DB.routine||[]).slice().sort((a,b)=>(a.time<b.time?-1:(a.time>b.time?1:0))); }
+function routineDone(r){ return r.doneDate===todayKey(); }
+async function toggleRoutine(id){
+  const r = (DB.routine||[]).find(x=>x.id===id);
+  if (!r) return;
+  r.doneDate = routineDone(r) ? null : todayKey();
+  await save(); render();
+}
+async function saveRoutine(){
+  const tm = document.getElementById('rTime').value;
+  const what = document.getElementById('rWhat').value.trim();
+  if (!tm || !what){ alert(t().needName); return; }
+  DB.routine = DB.routine||[];
+  DB.routine.push({id:uid(), time:tm, title:what, doneDate:null});
+  document.getElementById('rTime').value=''; document.getElementById('rWhat').value='';
+  await save(); showForm(null); render(); say(t().savedShort);
+}
+async function delRoutine(id){
+  if (!confirm(t().confirmDel)) return;
+  DB.routine = (DB.routine||[]).filter(x=>x.id!==id);
+  await save(); render();
+}
+function routineRow(r,L){
+  const on = routineDone(r);
+  return `<div class="item ${on?'done':''}">
+    <button class="tap ${on?'on':''}" onclick="toggleRoutine('${r.id}')" aria-label="${esc(r.title)}">${on?'✔':''}</button>
+    <div class="txt"><strong>${esc(r.time)} · ${esc(r.title)}</strong></div>
+    <button class="tap del" onclick="delRoutine('${r.id}')" aria-label="delete">🗑</button>
+  </div>`;
+}
+function routineCurrent(){
+  const items = routineItems(), hhmm = nowHHMM(), L = t();
+  const open = items.filter(r=>!routineDone(r));
+  if (!items.length) return {html:'', home:''};
+  if (!open.length) return {html:`<div class="notice" style="text-align:center;font-size:1.2rem;font-weight:800">🎉 ${esc(L.routineAllDone)}</div>`, home:L.routineAllDone};
+  const past = open.filter(r=>r.time<=hhmm);
+  if (past.length){
+    const cur = past[past.length-1];
+    const nxt = open.find(r=>r.time>cur.time);
+    const html = `<div class="notice" style="border:2px solid var(--green);font-size:1.15rem"><b>${esc(L.routineNow)}</b><br><span style="font-size:1.5rem;font-weight:800">${esc(cur.time)} · ${esc(cur.title)}</span></div>` +
+      (nxt ? `<div class="muted" style="margin-top:8px"><b>${esc(L.routineNext)}:</b> ${esc(nxt.time)} · ${esc(nxt.title)}</div>` : '');
+    return {html, home:L.routineNow+' '+cur.time+' '+cur.title};
+  }
+  const nxt = open[0];
+  return {html:`<div class="notice" style="font-size:1.15rem"><b>${esc(L.routineNext)}</b><br><span style="font-size:1.4rem;font-weight:800">${esc(nxt.time)} · ${esc(nxt.title)}</span></div>`,
+          home:L.routineNext+': '+nxt.time+' '+nxt.title};
+}
+function renderRoutine(){
+  const L = t();
+  const now = document.getElementById('routineNow'), list = document.getElementById('routineList');
+  if (!now || !list) return;
+  const items = routineItems();
+  const cur = routineCurrent();
+  if (!items.length){
+    now.innerHTML='';
+    list.innerHTML=`<div class="empty">${esc(L.routineEmpty)}</div>`;
+  }else{
+    now.innerHTML=cur.html;
+    list.innerHTML=items.map(r=>routineRow(r,L)).join('');
+  }
+  document.getElementById('routineNowLbl').textContent = cur.home;
 }
 
 /* ---------------- render ---------------- */
@@ -1584,6 +1888,7 @@ function render(){
 
   renderWellness();
   renderMemories();
+  renderRoutine();
   applyLangText();
 }
 
@@ -1612,7 +1917,12 @@ function applyLangText(){
   set('heardLbl',L.heardLbl); set('replyLbl',L.replyLbl); set('typeAskLbl',L.typeAsk);
   set('todayMedTitle',L.todayMed); set('medsTitle',L.medsTitle); set('medsHint',L.medsHint);
   set('addMedLbl',L.addMed); set('lbMedName',L.mName); set('lbMedTime',L.mTime); set('lbMedNote',L.mNote);
+  set('lbMedAlarm',L.alarmLbl);
   set('medDisclaim',L.medDisclaim);
+  set('alarmTitle',L.alarmTakeNow); set('alarmTookLbl',L.alarmTook); set('alarmSnoozeLbl',L.alarmSnooze);
+  set('lostBtn',L.lostBtn); set('lostHint',L.lostHint); set('lostTitle',L.lostTitle); set('lostCloseLbl',L.memClose);
+  set('routineBtn',L.routineBtn); set('routineTitle',L.routineBtn); set('routineHint',L.routineHint);
+  set('routineAddLbl',L.routineAdd); set('lbRTime',L.routineTime); set('lbRWhat',L.routineWhat);
   set('contactsTitle',L.contactsTitle); set('contactsHint',L.contactsHint); set('addContactLbl',L.addContact);
   set('lbCName',L.cName); set('lbCPhone',L.cPhone); set('lbCRole',L.cRole); set('lbCPhoto',L.photoLbl);
   set('notesTitle',L.notesTitle); set('notesHint',L.notesHint); set('voiceNoteLbl',L.voiceNote); set('addNoteLbl',L.addNote);
@@ -1795,7 +2105,7 @@ async function saveCounselor(){
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 function showForm(which){
-  ['med','contact','note','me','wc'].forEach(f=>{
+  ['med','contact','note','me','wc','routine'].forEach(f=>{
     const el = document.getElementById(f+'Form');
     if (el) el.style.display = (f===which) ? 'block' : 'none';
   });
@@ -1816,8 +2126,8 @@ function showForm(which){
 async function saveMed(){
   const name = document.getElementById('medName').value.trim();
   if (!name){ alert(t().needName); return; }
-  DB.meds.push({id:uid(),name,time:document.getElementById('medTime').value,note:document.getElementById('medNote').value.trim()});
-  document.getElementById('medName').value=''; document.getElementById('medNote').value='';
+  DB.meds.push({id:uid(),name,time:document.getElementById('medTime').value,note:document.getElementById('medNote').value.trim(),alarm:document.getElementById('medAlarm').value||null});
+  document.getElementById('medName').value=''; document.getElementById('medNote').value=''; document.getElementById('medAlarm').value='';
   await save(); showForm(null); render(); say(t().savedShort);
 }
 
@@ -2293,7 +2603,7 @@ function importData(ev){
       const d = (p && p.app==='mind-companion' && p.data) ? p.data : null;
       if (!d || !Array.isArray(d.meds)) throw new Error('bad file');
       if (!confirm(t().importAsk)) return;
-      DB = Object.assign({meds:[],contacts:[],notes:[],taken:{},me:{},lang:'en',scale:1,agreed:true,mood:{},checks:[],counselor:{},simpleMode:false,hc:false}, d);
+      DB = Object.assign({meds:[],contacts:[],notes:[],taken:{},me:{},lang:'en',scale:1,agreed:true,mood:{},checks:[],counselor:{},simpleMode:false,hc:false,routine:[]}, d);
       document.documentElement.style.setProperty('--scale',DB.scale||1);
       await save(); render();
       alert(t().importOk);
