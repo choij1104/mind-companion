@@ -173,6 +173,7 @@ body.hc .topbar .brand{color:#fff;}
 .modal.on{display:flex;}
 .modalbox{background:#fff;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:22px;}
 .modalbox h2{margin:0 0 10px;font-size:1.3rem;}
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(12px);background:#233042;color:#fff;padding:13px 22px;border-radius:999px;font-size:1.05rem;font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:600;max-width:88vw;text-align:center;}.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 /* memory of the day */
 .mem-photo{width:100%;border-radius:14px;display:block;max-height:46vh;object-fit:cover;background:#000}
 .mem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -503,6 +504,12 @@ body.hc .topbar .brand{color:#fff;}
     </div>
 
     <div class="card">
+      <h3 id="setResetTitle">Reset app</h3>
+      <p class="muted" id="setResetHint"></p>
+      <button class="btn red small" onclick="resetStep1()"><span class="ic">🗑</span><span id="setResetBtn"></span></button>
+    </div>
+
+    <div class="card">
       <h3 id="cgTitle">Caregiver · program staff</h3>
       <p class="muted" id="cgHint"></p>
       <button class="btn ghost" onclick="toggleSimple()"><span class="ic">🧭</span><span id="simpleBtnLbl"></span></button>
@@ -559,7 +566,7 @@ body.hc .topbar .brand{color:#fff;}
   </div>
 
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.9 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.9.2 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
   </div>
 </div>
 
@@ -585,7 +592,43 @@ body.hc .topbar .brand{color:#fff;}
   </div>
 </div>
 
-<!-- first-run notice -->
+<!-- generic non-blocking confirm (deletes, restores) -->
+  <div class="modal" id="confirmModal">
+    <div class="modalbox" style="text-align:center">
+      <h2 id="confirmTitle"></h2>
+      <div class="row2" style="margin-top:18px">
+        <button class="btn ghost" onclick="confirmNo()"><span class="ic">✕</span><span id="confirmNoLbl">Cancel</span></button>
+        <button class="btn red" onclick="confirmYes()"><span class="ic">🗑</span><span id="confirmYesLbl">Delete</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- reset app: two-step destructive confirm -->
+  <div class="modal" id="resetModal">
+    <div class="modalbox">
+      <div id="resetStep1">
+        <h2 id="resetTitle1"></h2>
+        <div class="notice" id="resetWarn"></div>
+        <div class="row2" style="margin-top:18px">
+          <button class="btn ghost" onclick="resetClose()"><span class="ic">✕</span><span id="resetCancel1"></span></button>
+          <button class="btn red" onclick="resetStep2()"><span class="ic">⚠️</span><span id="resetNextLbl"></span></button>
+        </div>
+      </div>
+      <div id="resetStep2" style="display:none">
+        <h2 id="resetTitle2"></h2>
+        <label style="display:flex;gap:12px;align-items:flex-start;font-size:1.1rem;margin:16px 0;cursor:pointer">
+          <input type="checkbox" id="resetAck" style="width:30px;height:30px;flex:0 0 auto" onchange="resetAckChange()">
+          <span id="resetAckLbl"></span>
+        </label>
+        <div class="row2">
+          <button class="btn ghost" onclick="resetBack()"><span class="ic">←</span><span id="resetBackLbl"></span></button>
+          <button class="btn red" id="resetGoBtn" disabled onclick="resetGo()"><span class="ic">🗑</span><span id="resetGoLbl"></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- first-run notice -->
 <div class="modal" id="firstRun">
   <div class="modalbox">
     <h2 id="frTitle">Before you start</h2>
@@ -611,10 +654,14 @@ body.hc .topbar .brand{color:#fff;}
    v1.6: Warmer design; persistent SOS button; medicines grouped by time of day;
          contact photos (tap photo to call); inline typed questions (no popup);
          high-contrast mode for low vision.
+   v1.9.2: Non-blocking confirm modal for all deletes (replaces blocking
+         confirm()); per-medicine delete with toast; Settings "Reset app"
+         with two-step erase of all local data; About disclaimer reworded —
+         medication alarms are optional reminders, not a medical service.
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.9';
+const APP_VERSION = '1.9.2';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -709,10 +756,20 @@ en:{
   setBackupTitle:'Backup and restore',
   setBackupHint:'Information is stored only on this device. If the browser data is cleared or the phone is replaced, it will be lost. Save a backup file and keep it somewhere safe.',
   setExport:'Save a backup file', setImport:'Restore from a backup file',
+  delBtn:'Delete', delToast:'Deleted.',
+  setResetTitle:'Reset app',
+  setResetHint:'Erase everything in this app — medicines, routines, memories, contacts, notes and settings. This cannot be undone.',
+  setResetBtn:'Erase all data',
+  resetTitle1:'Erase all data?', resetNext:'Continue',
+  resetWarn:'This will permanently delete ALL medicines, routines, memories, contacts, notes and settings from this device. This cannot be undone.',
+  resetTitle2:'Final confirmation',
+  resetAck:'I understand that everything in this app will be erased and cannot be recovered.',
+  resetBack:'Back', resetGo:'Yes, erase everything',
+  resetDone:'All data erased. The app is now fresh.',
   setNoticeTitle:'Important notice', setBack:'Back to home', setAboutTitle:'About',
   about:`Mind Companion v${APP_VERSION} · Works offline · No account, no tracking, no data sent anywhere.`,
   frTitle:'Before you start', frOk:'I understand',
-  disclaimer:'Mind Companion is a personal memory aid. It is not a medical device and does not give medical advice. It does not sound alarms and must not be relied on as a medication reminder. Always follow the instructions of your doctor or pharmacist. In an emergency, call 911 or your local emergency number. Information is stored only on this device; if browser data is cleared, it will be lost.',
+  disclaimer:'Mind Companion is a personal memory aid. It is not a medical device and does not give medical advice. Medication alarms are optional reminders only, not a medical service: they sound only while the app is open, and must not be relied on as the only way to take medicine. Always follow the instructions of your doctor or pharmacist. In an emergency, call 911 or your local emergency number. Information is stored only on this device; if browser data is cleared, it will be lost.',
   exportOk:'Backup file saved.',
   importAsk:'Restore this backup? Everything currently in the app will be replaced.',
   importOk:'Backup restored.', importBad:'That file could not be read. Please choose a Mind Companion backup file.',
@@ -880,10 +937,20 @@ ko:{
   setBackupTitle:'백업 및 복원',
   setBackupHint:'정보는 이 기기에만 저장됩니다. 브라우저 데이터를 지우거나 휴대폰을 바꾸면 사라집니다. 백업 파일을 저장해 안전한 곳에 보관하세요.',
   setExport:'백업 파일 저장', setImport:'백업 파일에서 복원',
+  delBtn:'삭제', delToast:'삭제했습니다.',
+  setResetTitle:'앱 초기화',
+  setResetHint:'이 앱의 모든 내용을 지웁니다 — 약, 일과, 기억, 연락처, 메모, 설정까지. 되돌릴 수 없습니다.',
+  setResetBtn:'모든 데이터 지우기',
+  resetTitle1:'모든 데이터를 지울까요?', resetNext:'계속',
+  resetWarn:'이 기기에 저장된 약, 일과, 기억, 연락처, 메모, 설정이 모두 영구적으로 삭제됩니다. 되돌릴 수 없습니다.',
+  resetTitle2:'최종 확인',
+  resetAck:'이 앱의 모든 내용이 지워지며 복구할 수 없다는 것을 이해합니다.',
+  resetBack:'뒤로', resetGo:'네, 모두 지우기',
+  resetDone:'모든 데이터를 지웠습니다. 앱이 처음 상태로 돌아왔습니다.',
   setNoticeTitle:'중요 안내', setBack:'홈으로', setAboutTitle:'앱 정보',
   about:`Mind Companion v${APP_VERSION} · 오프라인 작동 · 계정 없음, 추적 없음, 외부 전송 없음.`,
   frTitle:'시작하기 전에', frOk:'확인했습니다',
-  disclaimer:'Mind Companion은 기억을 돕는 보조 도구입니다. 의료기기가 아니며 의학적 조언을 제공하지 않습니다. 알람이 울리지 않으므로 복약 알림 수단으로 의존하면 안 됩니다. 반드시 의사·약사의 지시를 따르십시오. 응급 상황에서는 911 또는 지역 응급번호로 전화하십시오. 정보는 이 기기에만 저장되며, 브라우저 데이터를 지우면 사라집니다.',
+  disclaimer:'Mind Companion은 기억을 돕는 보조 도구입니다. 의료기기가 아니며 의학적 조언을 제공하지 않습니다. 복약 알람은 선택적인 보조 알림일 뿐 의료 서비스가 아닙니다: 앱이 열려 있을 때만 울리며, 약을 챙기는 유일한 수단으로 의존하면 안 됩니다. 반드시 의사·약사의 지시를 따르십시오. 응급 상황에서는 911 또는 지역 응급번호로 전화하십시오. 정보는 이 기기에만 저장되며, 브라우저 데이터를 지우면 사라집니다.',
   exportOk:'백업 파일을 저장했습니다.',
   importAsk:'이 백업으로 복원할까요? 현재 앱에 있는 내용은 모두 교체됩니다.',
   importOk:'복원했습니다.', importBad:'파일을 읽을 수 없습니다. Mind Companion 백업 파일을 선택해 주세요.',
@@ -1050,10 +1117,20 @@ es:{
   setBackupTitle:'Copia de seguridad',
   setBackupHint:'La información se guarda solo en este aparato. Si se borran los datos del navegador o cambia de teléfono, se perderá. Guarde una copia en un lugar seguro.',
   setExport:'Guardar copia de seguridad', setImport:'Restaurar desde una copia',
+  delBtn:'Borrar', delToast:'Eliminado.',
+  setResetTitle:'Restablecer la app',
+  setResetHint:'Borra todo lo de esta app: medicinas, rutinas, recuerdos, contactos, notas y ajustes. No se puede deshacer.',
+  setResetBtn:'Borrar todos los datos',
+  resetTitle1:'¿Borrar todos los datos?', resetNext:'Continuar',
+  resetWarn:'Esto eliminará para siempre TODAS las medicinas, rutinas, recuerdos, contactos, notas y ajustes de este aparato. No se puede deshacer.',
+  resetTitle2:'Confirmación final',
+  resetAck:'Entiendo que todo lo de esta app se borrará y no se podrá recuperar.',
+  resetBack:'Atrás', resetGo:'Sí, borrar todo',
+  resetDone:'Todos los datos fueron borrados. La app quedó como nueva.',
   setNoticeTitle:'Aviso importante', setBack:'Volver al inicio', setAboutTitle:'Acerca de',
   about:`Mind Companion v${APP_VERSION} · Funciona sin internet · Sin cuenta, sin rastreo, sin enviar datos.`,
   frTitle:'Antes de empezar', frOk:'Entendido',
-  disclaimer:'Mind Companion es una ayuda personal para la memoria. No es un dispositivo médico y no da consejos médicos. No suena alarmas y no debe usarse como recordatorio de medicinas. Siga siempre las indicaciones de su médico o farmacéutico. En una emergencia, llame al 911. La información se guarda solo en este aparato; si se borran los datos del navegador, se perderá.',
+  disclaimer:'Mind Companion es una ayuda personal para la memoria. No es un dispositivo médico y no da consejos médicos. Las alarmas de medicinas son solo recordatorios opcionales, no un servicio médico: solo suenan con la app abierta y no deben ser su único recordatorio. Siga siempre las indicaciones de su médico o farmacéutico. En una emergencia, llame al 911. La información se guarda solo en este aparato; si se borran los datos del navegador, se perderá.',
   exportOk:'Copia guardada.',
   importAsk:'¿Restaurar esta copia? Todo lo que hay ahora en la app será reemplazado.',
   importOk:'Copia restaurada.', importBad:'No se pudo leer ese archivo. Elija un archivo de copia de Mind Companion.',
@@ -1220,10 +1297,20 @@ ja:{
   setBackupTitle:'バックアップと復元',
   setBackupHint:'情報はこの機器だけに保存されます。ブラウザのデータを消したり機種を替えると消えます。バックアップファイルを安全な場所に保管してください。',
   setExport:'バックアップを保存', setImport:'バックアップから復元',
+  delBtn:'削除', delToast:'削除しました。',
+  setResetTitle:'アプリをリセット',
+  setResetHint:'このアプリのすべてを消去します——薬、毎日の予定、思い出、連絡先、メモ、設定。元に戻せません。',
+  setResetBtn:'すべてのデータを消去',
+  resetTitle1:'すべてのデータを消去しますか?', resetNext:'続ける',
+  resetWarn:'この機器に保存された薬、毎日の予定、思い出、連絡先、メモ、設定がすべて完全に削除されます。元に戻せません。',
+  resetTitle2:'最終確認',
+  resetAck:'このアプリのすべてが消去され、復元できないことを理解しています。',
+  resetBack:'戻る', resetGo:'はい、すべて消去する',
+  resetDone:'すべてのデータを消去しました。アプリは最初の状態に戻りました。',
   setNoticeTitle:'大切なお知らせ', setBack:'ホームへ', setAboutTitle:'このアプリについて',
   about:`Mind Companion v${APP_VERSION} · オフラインで動作 · アカウント不要、追跡なし、外部送信なし。`,
   frTitle:'はじめる前に', frOk:'分かりました',
-  disclaimer:'Mind Companionは記憶を助ける道具です。医療機器ではなく、医学的な助言もしません。アラームは鳴らないため、服薬の通知として頼らないでください。必ず医師・薬剤師の指示に従ってください。緊急のときは911にお電話ください。情報はこの機器だけに保存され、ブラウザのデータを消すと失われます。',
+  disclaimer:'Mind Companionは記憶を助ける道具です。医療機器ではなく、医学的な助言もしません。服薬アラームはあくまで補助的な通知であり、医療サービスではありません——アプリを開いているときのみ鳴り、服薬の唯一の手段として頼らないでください。必ず医師・薬剤師の指示に従ってください。緊急のときは911にお電話ください。情報はこの機器だけに保存され、ブラウザのデータを消すと失われます。',
   exportOk:'バックアップを保存しました。',
   importAsk:'このバックアップで復元しますか?今アプリにある内容はすべて置き換わります。',
   importOk:'復元しました。', importBad:'ファイルを読めませんでした。Mind Companionのバックアップファイルを選んでください。',
@@ -1360,6 +1447,22 @@ function say(text){
     u.lang = want; u.rate = 0.88; u.pitch = 1.0; u.volume = 1.0;
     speechSynthesis.speak(u);
   }catch(e){}
+}
+
+/* ---------------- non-blocking toast (visual + spoken) ---------------- */
+let toastTimer = null;
+function toast(msg){
+  say(msg);
+  let el = document.getElementById('toast');
+  if (!el){
+    el = document.createElement('div');
+    el.id = 'toast'; el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('on'), 2600);
 }
 
 /* ---------------- speech in (STT) ---------------- */
@@ -1657,7 +1760,7 @@ function medRow(m,compact){
   return `<div class="item ${on?'done':''}">
     <button class="tap ${on?'on':''}" onclick="toggleTaken('${m.id}')" aria-label="${esc(m.name)}">${on?'✔':''}</button>
     <div class="txt"><strong>${esc(m.name)}</strong><span>${t().times[m.time]||''}${m.alarm?' · ⏰'+m.alarm:''}${m.note?' · '+esc(m.note):''}</span></div>
-    ${compact?'':`<button class="tap del" onclick="delItem('meds','${m.id}')" aria-label="delete">🗑</button>`}
+    ${compact?'':`<button class="tap del" onclick="delItem('meds','${m.id}')" aria-label="${t().delBtn}">🗑</button>`}
   </div>`;
 }
 
@@ -1797,16 +1900,17 @@ async function saveRoutine(){
   await save(); showForm(null); render(); say(t().savedShort);
 }
 async function delRoutine(id){
-  if (!confirm(t().confirmDel)) return;
-  DB.routine = (DB.routine||[]).filter(x=>x.id!==id);
-  await save(); render();
+  askConfirm(t().confirmDel, t().delBtn, async ()=>{
+    DB.routine = (DB.routine||[]).filter(x=>x.id!==id);
+    await save(); render(); toast(t().delToast);
+  });
 }
 function routineRow(r,L){
   const on = routineDone(r);
   return `<div class="item ${on?'done':''}">
     <button class="tap ${on?'on':''}" onclick="toggleRoutine('${r.id}')" aria-label="${esc(r.title)}">${on?'✔':''}</button>
     <div class="txt"><strong>${esc(r.time)} · ${esc(r.title)}</strong></div>
-    <button class="tap del" onclick="delRoutine('${r.id}')" aria-label="delete">🗑</button>
+    <button class="tap del" onclick="delRoutine('${r.id}')" aria-label="${L.delBtn}">🗑</button>
   </div>`;
 }
 function routineCurrent(){
@@ -1870,14 +1974,14 @@ function render(){
     <div class="item">
       <a href="tel:${encodeURIComponent(c.phone)}" aria-label="call ${esc(c.name)}" style="flex:0 0 auto">${av}</a>
       <div class="txt"><strong>${esc(c.name)}</strong><span>${L.roles[c.role]||''} · ${esc(c.phone)}</span></div>
-      <button class="tap del" onclick="delItem('contacts','${c.id}')" aria-label="delete">🗑</button>
+      <button class="tap del" onclick="delItem('contacts','${c.id}')" aria-label="${L.delBtn}">🗑</button>
     </div>`;}).join('') : `<div class="empty">${L.noContacts}</div>`;
 
   document.getElementById('noteList').innerHTML = DB.notes.length ? DB.notes.slice().reverse().map(n=>`
     <div class="item">
       <div class="txt"><strong>${esc(n.title)}</strong><span>${esc(n.body)}</span></div>
       <button class="tap" onclick="say(${JSON.stringify(n.title+'. '+n.body).replace(/"/g,'&quot;')})" aria-label="read aloud">🔊</button>
-      <button class="tap del" onclick="delItem('notes','${n.id}')" aria-label="delete">🗑</button>
+      <button class="tap del" onclick="delItem('notes','${n.id}')" aria-label="${L.delBtn}">🗑</button>
     </div>`).join('') : `<div class="empty">${L.noNotes}</div>`;
 
   const fam = DB.contacts.filter(c=>c.role==='family');
@@ -1952,6 +2056,7 @@ function applyLangText(){
   set('setLangTitle',L.setLangTitle); set('setLangNote',L.setLangNote);
   set('setBackupTitle',L.setBackupTitle); set('setBackupHint',L.setBackupHint);
   set('setExport',L.setExport); set('setImport',L.setImport);
+  set('setResetTitle',L.setResetTitle); set('setResetHint',L.setResetHint); set('setResetBtn',L.setResetBtn);
   set('setAiTitle',L.setAiTitle); set('setAiHint',L.setAiHint);
   set('lbRelay',L.lbRelay); set('setTest',L.setTest); set('setAiNote',L.setAiNote);
   set('exLbl',L.exLbl);
@@ -2209,10 +2314,95 @@ async function saveMe(){
   await save(); showForm(null); render(); say(t().savedShort);
 }
 
+/* Generic non-blocking confirm dialog. cb runs only when the user presses
+   the red confirm button. */
+let confirmCb = null;
+function askConfirm(title, yesLabel, cb){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmYesLbl').textContent = yesLabel;
+  document.getElementById('confirmNoLbl').textContent = t().cancel;
+  confirmCb = cb;
+  document.getElementById('confirmModal').classList.add('on');
+}
+function confirmYes(){
+  document.getElementById('confirmModal').classList.remove('on');
+  const cb = confirmCb; confirmCb = null;
+  if (cb) cb();
+}
+function confirmNo(){
+  document.getElementById('confirmModal').classList.remove('on');
+  confirmCb = null;
+}
+
 async function delItem(kind,id){
-  if (!confirm(t().confirmDel)) return;
-  DB[kind] = DB[kind].filter(x=>x.id!==id);
-  await save(); render();
+  askConfirm(t().confirmDel, t().delBtn, async ()=>{
+    DB[kind] = DB[kind].filter(x=>x.id!==id);
+    /* Clean up only this medicine's pending alarm state — other medicines,
+       their alarms and routines are untouched. */
+    if (kind==='meds'){
+      delete alarmSnoozeUntil[id];
+      delete alarmFired[id];
+      alarmDueIds = alarmDueIds.filter(x=>x!==id);
+    }
+    await save(); render(); toast(t().delToast);
+  });
+}
+
+/* ---------------- reset app: wipe ALL local data (two-step) ---------------- */
+function resetStep1(){
+  const L = t();
+  setText('resetTitle1',L.resetTitle1); setText('resetWarn',L.resetWarn);
+  setText('resetCancel1',L.cancel); setText('resetNextLbl',L.resetNext);
+  document.getElementById('resetStep1').style.display = '';
+  document.getElementById('resetStep2').style.display = 'none';
+  document.getElementById('resetModal').classList.add('on');
+}
+function resetStep2(){
+  const L = t();
+  setText('resetTitle2',L.resetTitle2);
+  setText('resetAckLbl',L.resetAck);
+  setText('resetBackLbl',L.resetBack); setText('resetGoLbl',L.resetGo);
+  document.getElementById('resetAck').checked = false;
+  document.getElementById('resetGoBtn').disabled = true;
+  document.getElementById('resetStep1').style.display = 'none';
+  document.getElementById('resetStep2').style.display = '';
+}
+function resetAckChange(){
+  document.getElementById('resetGoBtn').disabled = !document.getElementById('resetAck').checked;
+}
+function resetBack(){
+  document.getElementById('resetStep1').style.display = '';
+  document.getElementById('resetStep2').style.display = 'none';
+}
+function resetClose(){
+  document.getElementById('resetModal').classList.remove('on');
+}
+async function resetGo(){
+  /* 1. wipe the key-value data (artifact storage + localStorage + memory) */
+  try{ localStorage.removeItem('mc:data'); }catch(e){}
+  /* 2. wipe the memory-of-day photo/voice store */
+  try{ const db = await memDb(); db.close(); }catch(e){}
+  memDbP = null;
+  try{
+    await new Promise(res=>{
+      const rq = indexedDB.deleteDatabase(MEM_DB);
+      rq.onsuccess = rq.onerror = rq.onblocked = ()=>res();
+    });
+  }catch(e){}
+  /* 3. fresh in-memory state (language back to the default) */
+  DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1,
+         agreed:false, relayUrl:'', mood:{}, checks:[], counselor:{},
+         simpleMode:false, hc:false, routine:[] };
+  await save();
+  alarmSnoozeUntil = {}; alarmFired = {}; alarmDueIds = [];
+  document.body.classList.remove('simple'); document.body.classList.remove('hc');
+  document.documentElement.style.setProperty('--scale', 1);
+  document.getElementById('resetModal').classList.remove('on');
+  go('home');
+  render();
+  /* back to a clean first-run state */
+  document.getElementById('firstRun').classList.add('on');
+  toast(t().resetDone);
 }
 
 /* ---------------- memory of the day (photo + voice diary) ---------------- */
@@ -2422,9 +2612,10 @@ function memClose(){
 }
 async function memDeleteBig(){
   if (!memBigId) return;
-  if (!confirm(t().confirmDel)) return;
-  try{ await memDel(memBigId); }catch(e){}
-  memClose(); renderMemories();
+  askConfirm(t().confirmDel, t().delBtn, async ()=>{
+    try{ await memDel(memBigId); }catch(e){}
+    memClose(); renderMemories(); toast(t().delToast);
+  });
 }
 
 let curView = 'home';
