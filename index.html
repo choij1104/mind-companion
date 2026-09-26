@@ -172,6 +172,16 @@ body.hc .topbar .brand{color:#fff;}
 .modal.on{display:flex;}
 .modalbox{background:#fff;border-radius:18px;max-width:520px;width:100%;max-height:88vh;overflow:auto;padding:22px;}
 .modalbox h2{margin:0 0 10px;font-size:1.3rem;}
+/* memory of the day */
+.mem-photo{width:100%;border-radius:14px;display:block;max-height:46vh;object-fit:cover;background:#000}
+.mem-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mem-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;border:2px solid var(--line);padding:0;background:none}
+.mem-thumb .mic-tag{position:absolute;right:4px;bottom:4px;font-size:1.2rem}
+.mem-tag{position:absolute;right:6px;bottom:6px;font-size:1.2rem;pointer-events:none}
+.mem-day{font-weight:700;margin:16px 0 8px;color:var(--ink-soft)}
+.mem-rec{font-size:1.25rem;font-weight:800;color:var(--red);text-align:center;margin-top:12px;animation:memblink 1s infinite}
+@keyframes memblink{50%{opacity:.35}}
+.mem-big{width:100%;border-radius:12px;display:block;max-height:52vh;object-fit:contain;background:#000}
 </style>
 </head>
 <body>
@@ -216,8 +226,40 @@ body.hc .topbar .brand{color:#fff;}
     </div>
 
     <div class="card">
+      <button class="btn green" style="min-height:88px;font-size:1.3rem;justify-content:center" onclick="go('memory')"><span class="ic">📷</span><span id="memHomeBtn">Memory of the day</span></button>
+      <p class="muted" id="memHomeHint" style="margin:10px 0 0"></p>
+    </div>
+
+    <div class="card">
       <h3 id="todayMedTitle">Today's medicine</h3>
       <div id="homeMeds"></div>
+    </div>
+  </section>
+
+  <!-- ================= MEMORY OF THE DAY ================= -->
+  <section class="view" id="v-memory">
+    <div class="card">
+      <h2 id="memTitle">📷 Memory of the day</h2>
+      <p class="muted" id="memHint"></p>
+      <input type="file" id="memPhotoInput" accept="image/*" style="display:none" onchange="memPhotoChosen(this)">
+      <div id="memPreviewWrap" style="display:none;margin-top:12px">
+        <img id="memPreview" class="mem-photo" alt="">
+      </div>
+      <button class="btn green" onclick="document.getElementById('memPhotoInput').click()"><span class="ic">📷</span><span id="memTakePhotoLbl">Take a photo</span></button>
+      <div id="memRecWrap" style="display:none">
+        <button class="btn" id="memRecBtn" onclick="memToggleRec()"><span class="ic">🎤</span><span id="memRecLbl">Record voice memo</span></button>
+        <div id="memRecStatus" class="mem-rec" style="display:none">🔴 <span id="memRecTime">0:00</span></div>
+        <audio id="memAudioPrev" controls style="display:none;width:100%;margin-top:10px"></audio>
+      </div>
+      <div class="row2" style="margin-top:4px">
+        <button class="btn green small" id="memSaveBtn" style="display:none" onclick="memSave()"><span class="ic">💾</span><span id="memSaveLbl">Save this memory</span></button>
+        <button class="btn ghost small" id="memCancelBtn" style="display:none" onclick="memReset()"><span class="ic">✕</span><span id="memCancelLbl">Cancel</span></button>
+      </div>
+      <div id="memMsg" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h3 id="memAlbumTitle">🖼 Memory album</h3>
+      <div id="memAlbum"><div class="empty" id="memEmpty"></div></div>
     </div>
   </section>
 
@@ -445,8 +487,22 @@ body.hc .topbar .brand{color:#fff;}
     </div>
   </section>
 
+  <!-- memory detail modal -->
+  <div class="modal" id="memModal">
+    <div class="modalbox">
+      <img id="memBigPhoto" class="mem-big" alt="">
+      <div class="datestr" id="memBigDate" style="margin:10px 0;font-weight:700"></div>
+      <button class="btn green" id="memPlayBtn" onclick="memPlayBig()"><span class="ic">▶</span><span id="memPlayLbl">Play voice memo</span></button>
+      <audio id="memBigAudio" controls style="width:100%;margin-top:10px"></audio>
+      <div class="row2" style="margin-top:10px">
+        <button class="btn ghost small" onclick="memClose()"><span class="ic">✕</span><span id="memCloseLbl">Close</span></button>
+        <button class="btn red small" onclick="memDeleteBig()"><span class="ic">🗑</span><span id="memDelLbl">Delete</span></button>
+      </div>
+    </div>
+  </div>
+
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.6 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.7 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
   </div>
 </div>
 
@@ -501,7 +557,7 @@ body.hc .topbar .brand{color:#fff;}
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -545,7 +601,7 @@ async function save(){ await store.set('data',DB); }
 const T = {
 en:{
   htmlLang:'en', voice:'en-US', sizeBtn:'A',
-  greetM:'Good morning', greetA:'Hello', greetE:'Good evening',
+  greetM:'Good morning', greetA:'Hello', greetE:'Good evening', greetN:'Good night',
   micIdle:'Press and speak', micLive:'Listening… press again to stop',
   heardLbl:'I heard', replyLbl:'Answer', typeAsk:'Type a question instead',
   todayMed:"Today's medicine", medsTitle:'💊 Medicine', medsHint:'Tap the big square when you have taken it.',
@@ -607,7 +663,17 @@ en:{
   exLbl:'You can ask me things like:',
   examples:['What day is it today?','Did I take my medicine?','Who is my doctor?'],
   thinking:'One moment…',
-  greetBack:'Good morning.', greetBackA:'Hello.', greetBackE:'Good evening.',
+  greetBack:'Good morning.', greetBackA:'Hello.', greetBackE:'Good evening.', greetBackN:'Good night.',
+  memHomeBtn:'Memory of the day', memHomeHint:'Photos and voice memos — remember today without reading.',
+  memTitle:'📷 Memory of the day', memHint:'Take a photo, then record a voice memo about it — like a picture diary.',
+  memTakePhoto:'Take a photo', memRetake:'Retake photo',
+  memRecord:'Record voice memo', memStop:'Stop recording', memRecording:'Recording…',
+  memSave:'Save this memory', memCancel:'Cancel',
+  memAlbum:'Memory album', memEmpty:'No memories yet. Take your first photo above!',
+  memPlay:'Play voice memo', memNoAudio:'(no voice memo)',
+  memClose:'Close', memDelete:'Delete', memSaved:'Saved!',
+  memMicDenied:'Microphone is blocked. Please allow microphone access and try again.',
+  memNeedPhoto:'Please take a photo first.',
   howAreYou:'I am doing well, thank you. How are you feeling today?',
   thanks:'You are very welcome.',
   notSure:'I am not sure about that one. You can ask me what day it is, whether you took your medicine, or who your doctor is.',
@@ -687,7 +753,7 @@ SAFETY — THIS MATTERS MOST
 },
 ko:{
   htmlLang:'ko', voice:'ko-KR', sizeBtn:'가',
-  greetM:'좋은 아침입니다', greetA:'안녕하세요', greetE:'좋은 저녁입니다',
+  greetM:'좋은 아침입니다', greetA:'안녕하세요', greetE:'좋은 저녁입니다', greetN:'좋은 밤입니다',
   micIdle:'눌러서 말하기', micLive:'듣고 있습니다… 다시 누르면 끝',
   heardLbl:'들은 내용', replyLbl:'대답', typeAsk:'글자로 물어보기',
   todayMed:'오늘 먹을 약', medsTitle:'💊 약', medsHint:'먹은 약은 큰 네모를 눌러 표시하세요.',
@@ -747,7 +813,17 @@ ko:{
   exLbl:'이런 것을 물어보실 수 있습니다:',
   examples:['오늘 며칠이지?','약 먹었나?','내 주치의가 누구지?'],
   thinking:'잠시만요…',
-  greetBack:'좋은 아침입니다.', greetBackA:'안녕하세요.', greetBackE:'좋은 저녁입니다.',
+  greetBack:'좋은 아침입니다.', greetBackA:'안녕하세요.', greetBackE:'좋은 저녁입니다.', greetBackN:'좋은 밤입니다.',
+  memHomeBtn:'오늘의 기억', memHomeHint:'사진과 음성 메모로 오늘을 기억하세요. 글을 읽지 않아도 돼요.',
+  memTitle:'📷 오늘의 기억', memHint:'사진을 찍고, 그 사진에 대해 음성 메모를 남겨보세요. 그림 일기처럼요.',
+  memTakePhoto:'사진 찍기', memRetake:'다시 찍기',
+  memRecord:'음성 메모 녹음', memStop:'녹음 정지', memRecording:'녹음 중…',
+  memSave:'이 기억 저장하기', memCancel:'취소',
+  memAlbum:'기억 앨범', memEmpty:'아직 저장된 기억이 없어요. 위에서 첫 사진을 찍어보세요!',
+  memPlay:'음성 메모 듣기', memNoAudio:'(음성 메모 없음)',
+  memClose:'닫기', memDelete:'삭제', memSaved:'저장됐어요!',
+  memMicDenied:'마이크가 차단됐어요. 마이크 접근을 허용한 뒤 다시 시도해주세요.',
+  memNeedPhoto:'먼저 사진을 찍어주세요.',
   howAreYou:'저는 잘 있습니다. 오늘 몸은 어떠신가요?',
   thanks:'천만에요.',
   notSure:'그건 잘 모르겠습니다. 오늘 날짜, 약을 드셨는지, 주치의가 누구인지 물어보실 수 있습니다.',
@@ -827,7 +903,7 @@ ko:{
 },
 es:{
   htmlLang:'es', voice:'es-US', sizeBtn:'A',
-  greetM:'Buenos días', greetA:'Buenas tardes', greetE:'Buenas noches',
+  greetM:'Buenos días', greetA:'Buenas tardes', greetE:'Buenas noches', greetN:'Buenas noches',
   micIdle:'Presione y hable', micLive:'Escuchando… presione de nuevo para terminar',
   heardLbl:'Escuché', replyLbl:'Respuesta', typeAsk:'Escribir una pregunta',
   todayMed:'Medicinas de hoy', medsTitle:'💊 Medicinas', medsHint:'Toque el cuadro grande cuando la haya tomado.',
@@ -887,7 +963,17 @@ es:{
   exLbl:'Puede preguntarme cosas como:',
   examples:['¿Qué día es hoy?','¿Tomé mis medicinas?','¿Quién es mi médico?'],
   thinking:'Un momento…',
-  greetBack:'Buenos días.', greetBackA:'Buenas tardes.', greetBackE:'Buenas noches.',
+  greetBack:'Buenos días.', greetBackA:'Buenas tardes.', greetBackE:'Buenas noches.', greetBackN:'Buenas noches.',
+  memHomeBtn:'Recuerdos del día', memHomeHint:'Fotos y notas de voz: recuerda hoy sin leer.',
+  memTitle:'📷 Recuerdos del día', memHint:'Toma una foto y graba una nota de voz sobre ella, como un diario con fotos.',
+  memTakePhoto:'Tomar una foto', memRetake:'Repetir foto',
+  memRecord:'Grabar nota de voz', memStop:'Detener', memRecording:'Grabando…',
+  memSave:'Guardar este recuerdo', memCancel:'Cancelar',
+  memAlbum:'Álbum de recuerdos', memEmpty:'Aún no hay recuerdos. ¡Toma tu primera foto arriba!',
+  memPlay:'Escuchar nota de voz', memNoAudio:'(sin nota de voz)',
+  memClose:'Cerrar', memDelete:'Eliminar', memSaved:'¡Guardado!',
+  memMicDenied:'El micrófono está bloqueado. Permite el acceso al micrófono e inténtalo de nuevo.',
+  memNeedPhoto:'Primero toma una foto.',
   howAreYou:'Estoy bien, gracias. ¿Cómo se siente usted hoy?',
   thanks:'Con mucho gusto.',
   notSure:'No estoy seguro de eso. Puede preguntarme qué día es, si tomó sus medicinas, o quién es su médico.',
@@ -967,7 +1053,7 @@ SEGURIDAD — ESTO ES LO MÁS IMPORTANTE
 },
 ja:{
   htmlLang:'ja', voice:'ja-JP', sizeBtn:'あ',
-  greetM:'おはようございます', greetA:'こんにちは', greetE:'こんばんは',
+  greetM:'おはようございます', greetA:'こんにちは', greetE:'こんばんは', greetN:'おやすみなさい',
   micIdle:'押して話す', micLive:'聞いています… もう一度押すと終わります',
   heardLbl:'聞いた内容', replyLbl:'答え', typeAsk:'文字で質問する',
   todayMed:'今日のお薬', medsTitle:'💊 お薬', medsHint:'飲んだら大きい四角を押してください。',
@@ -1027,7 +1113,17 @@ ja:{
   exLbl:'こんなことを聞けます:',
   examples:['今日は何日?','薬は飲んだ?','私のお医者さんは誰?'],
   thinking:'少々お待ちください…',
-  greetBack:'おはようございます。', greetBackA:'こんにちは。', greetBackE:'こんばんは。',
+  greetBack:'おはようございます。', greetBackA:'こんにちは。', greetBackE:'こんばんは。', greetBackN:'おやすみなさい。',
+  memHomeBtn:'今日の思い出', memHomeHint:'写真と音声メモで今日を思い出しましょう。文字が読めなくても大丈夫。',
+  memTitle:'📷 今日の思い出', memHint:'写真を撮って、その写真について音声メモを残しましょう。絵日記のように。',
+  memTakePhoto:'写真を撮る', memRetake:'撮り直す',
+  memRecord:'音声メモを録音', memStop:'録音停止', memRecording:'録音中…',
+  memSave:'この思い出を保存', memCancel:'キャンセル',
+  memAlbum:'思い出アルバム', memEmpty:'まだ思い出がありません。上のボタンから最初の写真を撮りましょう!',
+  memPlay:'音声メモを聞く', memNoAudio:'(音声メモなし)',
+  memClose:'閉じる', memDelete:'削除', memSaved:'保存しました!',
+  memMicDenied:'マイクがブロックされています。マイクへのアクセスを許可して、もう一度お試しください。',
+  memNeedPhoto:'先に写真を撮ってください。',
   howAreYou:'私は元気です。今日のご気分はいかがですか?',
   thanks:'どういたしまして。',
   notSure:'それはよく分かりません。今日の日付、薬を飲んだか、お医者さんが誰かを聞いてみてください。',
@@ -1257,7 +1353,7 @@ function localAnswer(q){
     if (hit(q,['good morning','좋은 아침','아침'])) g = L.greetBack;
     else if (hit(q,['good evening','good night','좋은 저녁','저녁'])) g = L.greetBackE;
     else if (hit(q,['good afternoon','점심'])) g = L.greetBackA;
-    else g = h<12 ? L.greetBack : (h<18 ? L.greetBackA : L.greetBackE);
+    else g = h>=5&&h<12 ? L.greetBack : (h>=12&&h<18 ? L.greetBackA : (h>=18&&h<22 ? L.greetBackE : L.greetBackN));
     const left = todaysMeds().filter(m=>!isTaken(m.id)).length;
     const med = DB.meds.length===0 ? '' : (left===0 ? ' '+L.allTaken : ' '+L.medLeft(left));
     return `${g} ${L.today} ${dateString()}.${med}`;
@@ -1437,9 +1533,9 @@ function render(){
   document.getElementById('clock').textContent = timeString();
   document.getElementById('datestr').textContent = dateString();
   const h = new Date().getHours();
-  const pod = h>=5&&h<11 ? 0 : (h<17 ? 1 : (h<21 ? 2 : 3));
+  const pod = h>=5&&h<11 ? 0 : (h>=11&&h<17 ? 1 : (h>=17&&h<21 ? 2 : 3));
   document.getElementById('podLine').textContent = L.nowIs(L.pods[pod]);
-  const g = h<12 ? L.greetM : (h<18 ? L.greetA : L.greetE);
+  const g = h>=5&&h<12 ? L.greetM : (h>=12&&h<18 ? L.greetA : (h>=18&&h<22 ? L.greetE : L.greetN));
   document.getElementById('greeting').textContent = g + (DB.me.name ? ', '+DB.me.name : '');
   const left = todaysMeds().filter(m=>!isTaken(m.id)).length;
   document.getElementById('homeSummary').textContent =
@@ -1487,6 +1583,7 @@ function render(){
   if (ru && document.activeElement !== ru) ru.value = DB.relayUrl || '';
 
   renderWellness();
+  renderMemories();
   applyLangText();
 }
 
@@ -1533,6 +1630,14 @@ function applyLangText(){
   set('setAiTitle',L.setAiTitle); set('setAiHint',L.setAiHint);
   set('lbRelay',L.lbRelay); set('setTest',L.setTest); set('setAiNote',L.setAiNote);
   set('exLbl',L.exLbl);
+  /* memory of the day */
+  set('memHomeBtn',L.memHomeBtn); set('memHomeHint',L.memHomeHint);
+  set('memTitle',L.memTitle); set('memHint',L.memHint);
+  set('memTakePhotoLbl', memPhotoBlob ? L.memRetake : L.memTakePhoto);
+  set('memRecLbl', memRecTimer ? L.memStop : L.memRecord);
+  set('memSaveLbl',L.memSave); set('memCancelLbl',L.memCancel);
+  set('memAlbumTitle',L.memAlbum);
+  set('memPlayLbl',L.memPlay); set('memCloseLbl',L.memClose); set('memDelLbl',L.memDelete);
   set('setNoticeTitle',L.setNoticeTitle); set('setBack',L.setBack); set('setAboutTitle',L.setAboutTitle);
   set('aboutText',L.about); set('disclaimerText',L.disclaimer);
   set('frTitle',L.frTitle); set('frText',L.disclaimer); set('frOk',L.frOk);
@@ -1783,6 +1888,218 @@ async function delItem(kind,id){
   if (!confirm(t().confirmDel)) return;
   DB[kind] = DB[kind].filter(x=>x.id!==id);
   await save(); render();
+}
+
+/* ---------------- memory of the day (photo + voice diary) ---------------- */
+function setText(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+const MEM_DB='mc-memories', MEM_STORE='memories';
+let memDbP=null;
+function memDb(){
+  if (memDbP) return memDbP;
+  memDbP = new Promise((res,rej)=>{
+    try{
+      const rq = indexedDB.open(MEM_DB,1);
+      rq.onupgradeneeded = ()=>{ rq.result.createObjectStore(MEM_STORE,{keyPath:'id'}); };
+      rq.onsuccess = ()=>res(rq.result);
+      rq.onerror = ()=>rej(rq.error);
+    }catch(e){ rej(e); }
+  });
+  return memDbP;
+}
+function memAll(){
+  return memDb().then(db=>new Promise((res,rej)=>{
+    const rq = db.transaction(MEM_STORE,'readonly').objectStore(MEM_STORE).getAll();
+    rq.onsuccess=()=>res((rq.result||[]).sort((a,b)=>b.takenAt-a.takenAt));
+    rq.onerror=()=>rej(rq.error);
+  }));
+}
+function memPut(e){
+  return memDb().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(MEM_STORE,'readwrite');
+    tx.objectStore(MEM_STORE).put(e);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  }));
+}
+function memDel(id){
+  return memDb().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(MEM_STORE,'readwrite');
+    tx.objectStore(MEM_STORE).delete(id);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  }));
+}
+let memPhotoBlob=null, memAudioBlob=null, memAudioType='';
+let memRec=null, memChunks=[], memStream=null, memRecTimer=null, memRecSecs=0;
+let memBigId=null, memThumbUrls={};
+
+function memMsg(msg, ok){
+  const e=document.getElementById('memMsg');
+  e.innerHTML = msg ? `<div class="${ok?'notice':'warn'}">${esc(msg)}</div>` : '';
+}
+function downscalePhoto(file){
+  return new Promise((res,rej)=>{
+    const done=(bmp)=>{
+      const MAX=1280;
+      let w=bmp.width, h=bmp.height;
+      const s=Math.min(1, MAX/Math.max(w,h));
+      w=Math.max(1,Math.round(w*s)); h=Math.max(1,Math.round(h*s));
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(bmp,0,0,w,h);
+      c.toBlob(b=>b?res(b):rej(new Error('blob')),'image/jpeg',0.85);
+    };
+    const fallback=()=>{
+      const img=new Image();
+      img.onload=()=>done(img); img.onerror=rej;
+      img.src=URL.createObjectURL(file);
+    };
+    if (window.createImageBitmap){
+      createImageBitmap(file,{imageOrientation:'fromImage'}).then(done).catch(fallback);
+    } else fallback();
+  });
+}
+async function memPhotoChosen(input){
+  const f = input.files && input.files[0];
+  input.value='';
+  if (!f) return;
+  memMsg('');
+  try{
+    memPhotoBlob = await downscalePhoto(f);
+    const img=document.getElementById('memPreview');
+    if (img.src) URL.revokeObjectURL(img.src);
+    img.src=URL.createObjectURL(memPhotoBlob);
+    document.getElementById('memPreviewWrap').style.display='block';
+    document.getElementById('memRecWrap').style.display='block';
+    document.getElementById('memSaveBtn').style.display='';
+    document.getElementById('memCancelBtn').style.display='';
+    setText('memTakePhotoLbl', t().memRetake);
+  }catch(e){ memMsg(t().memNeedPhoto); }
+}
+async function memToggleRec(){
+  const L=t();
+  if (memRec && memRec.state==='recording'){ memStopRec(); return; }
+  memMsg('');
+  let stream;
+  try{ stream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ memMsg(L.memMicDenied); return; }
+  memStream=stream; memChunks=[];
+  try{ memRec = new MediaRecorder(stream); }
+  catch(e){ memMsg(L.memMicDenied); stream.getTracks().forEach(tr=>tr.stop()); memStream=null; return; }
+  memRec.ondataavailable = e=>{ if(e.data && e.data.size) memChunks.push(e.data); };
+  memRec.onstop = ()=>{
+    memAudioType = (memRec && memRec.mimeType) || 'audio/mp4';
+    memAudioBlob = new Blob(memChunks,{type:memAudioType});
+    const a=document.getElementById('memAudioPrev');
+    if (a.src) URL.revokeObjectURL(a.src);
+    a.src=URL.createObjectURL(memAudioBlob);
+    a.style.display='block';
+    if (memStream){ memStream.getTracks().forEach(tr=>tr.stop()); memStream=null; }
+  };
+  try{ memRec.start(); }catch(e){ memMsg(L.memMicDenied); return; }
+  memRecSecs=0;
+  setText('memRecLbl',L.memStop);
+  setText('memRecTime','0:00');
+  document.getElementById('memRecStatus').style.display='block';
+  memRecTimer=setInterval(()=>{
+    memRecSecs++;
+    setText('memRecTime', Math.floor(memRecSecs/60)+':'+String(memRecSecs%60).padStart(2,'0'));
+  },1000);
+}
+function memStopRec(){
+  if (memRecTimer){ clearInterval(memRecTimer); memRecTimer=null; }
+  document.getElementById('memRecStatus').style.display='none';
+  setText('memRecLbl',t().memRecord);
+  if (memRec && memRec.state!=='inactive'){ try{ memRec.stop(); }catch(e){} }
+  memRec=null;
+}
+async function memSave(){
+  const L=t();
+  if (!memPhotoBlob){ memMsg(L.memNeedPhoto); return; }
+  const now=Date.now(), d=new Date();
+  const dk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  try{
+    await memPut({id:'m'+now+Math.random().toString(36).slice(2,7), takenAt:now, dateKey:dk,
+      photo:memPhotoBlob, audio:memAudioBlob, audioType:memAudioType});
+  }catch(e){ memMsg(L.memNeedPhoto); return; }
+  memReset(true);
+  memMsg(L.memSaved, true);
+  renderMemories();
+}
+function memReset(keepMsg){
+  if (memRecTimer || (memRec && memRec.state==='recording')) memStopRec();
+  memPhotoBlob=null; memAudioBlob=null; memAudioType='';
+  const pv=document.getElementById('memPreview');
+  if (pv && pv.src && pv.src.startsWith('blob:')) URL.revokeObjectURL(pv.src);
+  if (pv) pv.removeAttribute('src');
+  const ap=document.getElementById('memAudioPrev');
+  if (ap && ap.src && ap.src.startsWith('blob:')) URL.revokeObjectURL(ap.src);
+  if (ap){ ap.removeAttribute('src'); ap.style.display='none'; }
+  ['memPreviewWrap','memRecWrap','memRecStatus','memSaveBtn','memCancelBtn'].forEach(id=>{
+    const e=document.getElementById(id); if(e) e.style.display='none';
+  });
+  setText('memTakePhotoLbl',t().memTakePhoto);
+  setText('memRecLbl',t().memRecord);
+  if (!keepMsg) memMsg('');
+}
+async function renderMemories(){
+  const box=document.getElementById('memAlbum');
+  if (!box) return;
+  const L=t();
+  Object.values(memThumbUrls).forEach(u=>{ try{URL.revokeObjectURL(u);}catch(e){} });
+  memThumbUrls={};
+  let items=[];
+  try{ items=await memAll(); }catch(e){}
+  if (!items.length){ box.innerHTML=`<div class="empty">${esc(L.memEmpty)}</div>`; return; }
+  const groups={};
+  items.forEach(it=>{ (groups[it.dateKey]=groups[it.dateKey]||[]).push(it); });
+  const loc=LOC[DB.lang]||'en-US';
+  box.innerHTML = Object.keys(groups).sort().reverse().map(dk=>{
+    const dstr=new Date(dk+'T12:00:00').toLocaleDateString(loc,{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+    const thumbs=groups[dk].map(it=>{
+      const u=URL.createObjectURL(it.photo);
+      memThumbUrls[it.id]=u;
+      const tag=it.audio?'<span class="mem-tag">🎤</span>':'';
+      return `<div style="position:relative"><button class="mem-thumb" onclick="memOpen('${it.id}')" aria-label="${esc(dstr)}"><img src="${u}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px;display:block;pointer-events:none"></button>${tag}</div>`;
+    }).join('');
+    return `<div class="mem-day">${esc(dstr)}</div><div class="mem-grid">${thumbs}</div>`;
+  }).join('');
+}
+async function memOpen(id){
+  const L=t();
+  let items=[];
+  try{ items=await memAll(); }catch(e){}
+  const it=items.find(x=>x.id===id);
+  if (!it) return;
+  memBigId=id;
+  const img=document.getElementById('memBigPhoto');
+  if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  img.src=URL.createObjectURL(it.photo);
+  const loc=LOC[DB.lang]||'en-US';
+  const dt=new Date(it.takenAt);
+  document.getElementById('memBigDate').textContent =
+    dt.toLocaleDateString(loc,{year:'numeric',month:'long',day:'numeric',weekday:'long'})+' · '+
+    dt.toLocaleTimeString(loc,{hour:'numeric',minute:'2-digit'});
+  const a=document.getElementById('memBigAudio');
+  if (a.src && a.src.startsWith('blob:')) URL.revokeObjectURL(a.src);
+  a.removeAttribute('src');
+  const pb=document.getElementById('memPlayBtn');
+  if (it.audio){
+    a.src=URL.createObjectURL(it.audio);
+    a.style.display='block'; pb.style.display='';
+  } else {
+    a.style.display='none'; pb.style.display='none';
+  }
+  document.getElementById('memModal').classList.add('on');
+}
+function memPlayBig(){ const a=document.getElementById('memBigAudio'); if (a && a.src) a.play(); }
+function memClose(){
+  document.getElementById('memModal').classList.remove('on');
+  const a=document.getElementById('memBigAudio'); if (a) a.pause();
+  memBigId=null;
+}
+async function memDeleteBig(){
+  if (!memBigId) return;
+  if (!confirm(t().confirmDel)) return;
+  try{ await memDel(memBigId); }catch(e){}
+  memClose(); renderMemories();
 }
 
 let curView = 'home';
