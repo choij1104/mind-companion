@@ -1,5 +1,15 @@
 # Changelog — Mind Companion
 
+## v1.9.1 — 2026-09-26
+
+### Fixed
+- **Medication alarm snooze** — "Remind me in 10 min" now actually re-reminds. The fired
+  flag is cleared when snoozing, so the alarm can fire again after the snooze period;
+  previously the flag blocked any re-fire and the alarm stayed silent for the day.
+- **Overlapping alarms** — if a second medication's alarm time arrives while the alarm
+  modal is already showing, the new medicine is merged into the list instead of
+  replacing it, so "I took it" still marks every medicine that fired.
+
 ## v1.5 — 2026-08-20
 
 The first release since v1.3. It carries both v1.4 and v1.5, which were built but never
