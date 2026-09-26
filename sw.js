@@ -1,6 +1,6 @@
 /* Mind Companion service worker — offline-first shell cache
    IMPORTANT: bump CACHE on every release, or old assets stay on the device. */
-const CACHE = 'mind-companion-v1.8';
+const CACHE = 'mind-companion-v1.9';
 const ASSETS = [
   './',
   './index.html',
