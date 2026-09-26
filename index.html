@@ -1699,10 +1699,17 @@ function checkAlarms(){
 }
 function fireAlarm(due){
   const dk = todayKey(), L = t();
-  alarmDueIds = due.map(m=>m.id);
+  const modal = document.getElementById('alarmModal');
+  const already = modal.classList.contains('on');
+  /* If the modal is already showing earlier meds, merge rather than replace,
+     so "I took it" still covers every med that fired. */
+  alarmDueIds = [...new Set([...alarmDueIds, ...due.map(m=>m.id)])];
   due.forEach(m=>{ alarmFired[m.id]=dk; });
-  document.getElementById('alarmMeds').innerHTML = due.map(m=>`<div>💊 ${esc(m.name)}</div>`).join('');
-  document.getElementById('alarmModal').classList.add('on');
+  const names = due.map(m=>`<div>💊 ${esc(m.name)}</div>`).join('');
+  document.getElementById('alarmMeds').innerHTML = already
+    ? document.getElementById('alarmMeds').innerHTML + names
+    : names;
+  modal.classList.add('on');
   alarmSound();
   try{
     if ('Notification' in window && Notification.permission==='granted')
@@ -1719,7 +1726,9 @@ async function alarmTook(){
   say(t().alarmTook);
 }
 function alarmSnooze(){
-  alarmDueIds.forEach(id=>{ alarmSnoozeUntil[id]=Date.now()+10*60*1000; });
+  /* Clear the fired flag too: fireAlarm() marks it when the modal shows, and
+     without this the alarm would stay silenced for the rest of the day. */
+  alarmDueIds.forEach(id=>{ alarmSnoozeUntil[id]=Date.now()+10*60*1000; delete alarmFired[id]; });
   alarmDueIds = [];
   document.getElementById('alarmModal').classList.remove('on');
 }
