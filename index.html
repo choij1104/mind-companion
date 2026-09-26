@@ -237,6 +237,11 @@ body.hc .topbar .brand{color:#fff;}
     </div>
 
     <div class="card">
+      <button class="btn" style="min-height:88px;font-size:1.3rem;justify-content:center;background:#b97a0c" onclick="lostTap()"><span class="ic">🧭</span><span id="lostHomeBtn">I am lost</span></button>
+      <p class="muted" id="lostHomeHint" style="margin:10px 0 0"></p>
+    </div>
+
+    <div class="card">
       <h3 id="todayMedTitle">Today's medicine</h3>
       <div id="homeMeds"></div>
     </div>
@@ -554,7 +559,7 @@ body.hc .topbar .brand{color:#fff;}
   </div>
 
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.8 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.9 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
   </div>
 </div>
 
@@ -609,7 +614,7 @@ body.hc .topbar .brand{color:#fff;}
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -1921,6 +1926,7 @@ function applyLangText(){
   set('medDisclaim',L.medDisclaim);
   set('alarmTitle',L.alarmTakeNow); set('alarmTookLbl',L.alarmTook); set('alarmSnoozeLbl',L.alarmSnooze);
   set('lostBtn',L.lostBtn); set('lostHint',L.lostHint); set('lostTitle',L.lostTitle); set('lostCloseLbl',L.memClose);
+  set('lostHomeBtn',L.lostBtn); set('lostHomeHint',L.lostHint);
   set('routineBtn',L.routineBtn); set('routineTitle',L.routineBtn); set('routineHint',L.routineHint);
   set('routineAddLbl',L.routineAdd); set('lbRTime',L.routineTime); set('lbRWhat',L.routineWhat);
   set('contactsTitle',L.contactsTitle); set('contactsHint',L.contactsHint); set('addContactLbl',L.addContact);
