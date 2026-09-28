@@ -1,5 +1,11 @@
 # Changelog — Mind Companion
 
+## v1.9.3 — 2026-09-27
+
+### Fixed
+- **Reset app** keeps the language in use (Korean, Spanish or Japanese) instead of switching
+  the app back to English after all data is erased.
+
 ## v1.9.1 — 2026-09-26
 
 ### Fixed
