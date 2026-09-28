@@ -566,7 +566,7 @@ body.hc .topbar .brand{color:#fff;}
   </div>
 
   <div class="foot">
-    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.9.2 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
+    <span id="footTxt">All information stays on this device.</span><br>Mind Companion v1.9.3 · © 2026 Jae Hyek Choi / HAKOYA LLC. All rights reserved.
   </div>
 </div>
 
@@ -658,10 +658,11 @@ body.hc .topbar .brand{color:#fff;}
          confirm()); per-medicine delete with toast; Settings "Reset app"
          with two-step erase of all local data; About disclaimer reworded —
          medication alarms are optional reminders, not a medical service.
+   v1.9.3: Reset app keeps the current language instead of switching to English.
    Storage: artifact storage -> localStorage -> memory.
    ===================================================================== */
 
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.9.3';
 
 /* ---------------- storage layer ---------------- */
 const mem = {};
@@ -2389,8 +2390,9 @@ async function resetGo(){
       rq.onsuccess = rq.onerror = rq.onblocked = ()=>res();
     });
   }catch(e){}
-  /* 3. fresh in-memory state (language back to the default) */
-  DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:'en', scale:1,
+  /* 3. fresh in-memory state; keep the language the user was using */
+  const keepLang = DB.lang || 'en';
+  DB = { meds:[], contacts:[], notes:[], taken:{}, me:{}, lang:keepLang, scale:1,
          agreed:false, relayUrl:'', mood:{}, checks:[], counselor:{},
          simpleMode:false, hc:false, routine:[] };
   await save();
