@@ -1,0 +1,9 @@
+{
+  "appId": "com.hakoya.mindcompanion",
+  "appName": "Mind Companion",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#EEF3F8",
+    "allowMixedContent": false
+  }
+}

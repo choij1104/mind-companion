@@ -1,0 +1,100 @@
+# Builds the Google Play build of Mind Companion as an Android App Bundle (.aab).
+#
+# The web bundle is android/scripts/build-store.py run on the repository's index.html (the web
+# app itself is not modified): offline (no conversation relay), no service worker, plus a native
+# shim for speech in/out and file saving (android/scripts/native-shim.js). Capacitor 8,
+# targetSdk 36, Java 21, Node 22. Plugins: speech-recognition, text-to-speech, filesystem, share.
+#
+# The bundle is built UNSIGNED. No signing key is stored in this repository or its secrets.
+# The upload key is held by the account holder; the bundle is signed with it outside CI
+# (jarsigner) before it is uploaded to Play Console, and Google re-signs it with the app
+# signing key (Play App Signing).
+#
+# Runs on a push to the `android-build` branch or by manual dispatch. The unsigned bundle is
+# kept as a workflow artifact and also committed to the `android-artifacts` branch
+# (dist/mind-companion-<version>-<code>-unsigned.aab) so it can be fetched with plain git.
+name: Android build (Google Play)
+on:
+  push:
+    branches: [android-build]
+    paths-ignore: ["android/listing/**", "android/PLAY.md"]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Version shown on Google Play (versionName)"
+        required: true
+        default: "1.0"
+permissions:
+  contents: write
+concurrency:
+  group: android-build
+  cancel-in-progress: false
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION_NAME: ${{ inputs.version_name || '1.0' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build store web bundle
+        working-directory: android
+        run: |
+          npm ci
+          npm run build:www
+          grep -q '<meta name="mind-companion-build" content="store">' www/index.html
+
+      - name: Generate and prepare the Android project
+        working-directory: android
+        run: |
+          pip3 install --quiet --break-system-packages pillow || pip3 install --quiet pillow
+          npx cap add android
+          python3 scripts/native-setup.py
+          npx cap sync android
+
+      - name: Build App Bundle (unsigned release)
+        working-directory: android/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease
+          ls -l app/build/outputs/bundle/release/
+
+      - name: Collect bundle
+        id: out
+        run: |
+          NAME="mind-companion-${VERSION_NAME}-${BUILD_NUMBER}-unsigned.aab"
+          mkdir -p "$RUNNER_TEMP/dist"
+          cp android/android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/dist/$NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "Built $NAME (versionCode $BUILD_NUMBER, versionName $VERSION_NAME). Sign with the upload key before uploading." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.out.outputs.name }}
+          path: ${{ runner.temp }}/dist/${{ steps.out.outputs.name }}
+
+      - name: Commit bundle to the android-artifacts branch
+        run: |
+          cd "$RUNNER_TEMP"
+          git init -q art && cd art
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth 1 origin android-artifacts && git checkout -q -b android-artifacts FETCH_HEAD || git checkout -q --orphan android-artifacts
+          mkdir -p dist
+          cp "$RUNNER_TEMP/dist/${{ steps.out.outputs.name }}" dist/
+          echo "${{ steps.out.outputs.name }}" > dist/LATEST
+          git add dist
+          git commit -q -m "Android bundle ${{ steps.out.outputs.name }} from ${{ github.sha }}"
+          git push -q origin android-artifacts

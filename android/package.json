@@ -1,0 +1,20 @@
+{
+  "name": "mind-companion-android",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Google Play build of Mind Companion, wrapped with Capacitor. The web bundle is made by scripts/build-store.py from the repository's index.html (offline store build).",
+  "scripts": {
+    "build:www": "python3 scripts/build-store.py"
+  },
+  "dependencies": {
+    "@capacitor-community/speech-recognition": "7.0.1",
+    "@capacitor-community/text-to-speech": "8.0.2",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.4",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}
